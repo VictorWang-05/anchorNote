@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_beige">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/app_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/background_beige"
+        android:elevation="0dp"
+        app:elevation="0dp">
+
+        <!-- Toolbar -->
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/background_beige"
+            app:navigationIcon="@android:drawable/ic_menu_revert"
+            app:navigationContentDescription="@string/cd_back"
+            app:titleTextColor="@color/text_dark"
+            app:menu="@menu/menu_note_editor"
+            tools:title="@string/edit_note" />
+
+        <!-- Header chips row (Tags, Location, Reminder) -->
+        <HorizontalScrollView
+            android:id="@+id/chip_scroll_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chip_group_meta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:chipSpacingHorizontal="8dp"
+                app:singleLine="true">
+
+                <!-- Tags chips will be added dynamically -->
+                <!-- Add Tag chip -->
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_add_tag"
+                    style="@style/Widget.Material3.Chip.Suggestion"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/chip_add_tag"
+                    android:textColor="@color/orange_primary"
+                    app:chipBackgroundColor="@color/note_card_beige"
+                    app:chipStrokeColor="@color/orange_primary"
+                    app:chipStrokeWidth="1dp" />
+
+                <!-- Location chip -->
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_location"
+                    style="@style/Widget.Material3.Chip.Assist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/chip_no_location"
+                    android:textColor="@color/text_dark"
+                    app:chipBackgroundColor="@color/note_card_beige"
+                    app:chipIcon="@android:drawable/ic_menu_mylocation"
+                    app:chipIconTint="@color/orange_primary"
+                    app:closeIconVisible="false" />
+
+                <!-- Reminder chip -->
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_reminder"
+                    style="@style/Widget.Material3.Chip.Assist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/chip_no_reminder"
+                    android:textColor="@color/text_dark"
+                    app:chipBackgroundColor="@color/note_card_beige"
+                    app:chipIcon="@android:drawable/ic_menu_recent_history"
+                    app:chipIconTint="@color/orange_primary"
+                    app:closeIconVisible="false" />
+            </com.google.android.material.chip.ChipGroup>
+        </HorizontalScrollView>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Main content -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Title -->
+            <EditText
+                android:id="@+id/et_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/note_title_hint"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_dark"
+                android:textColorHint="@color/text_secondary"
+                android:background="@android:color/transparent"
+                android:inputType="textCapSentences"
+                android:maxLines="2"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp" />
+
+            <!-- Body -->
+            <EditText
+                android:id="@+id/et_body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="@string/note_body_hint"
+                android:textSize="16sp"
+                android:textColor="@color/text_dark"
+                android:textColorHint="@color/text_secondary"
+                android:background="@android:color/transparent"
+                android:inputType="textMultiLine|textCapSentences"
+                android:gravity="top|start"
+                android:minHeight="200dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp" />
+
+            <!-- Attachments section -->
+            <LinearLayout
+                android:id="@+id/layout_attachments"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/attachments_label"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_dark"
+                    android:layout_marginBottom="8dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_attachments"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                    tools:listitem="@layout/item_attachment_photo"
+                    tools:itemCount="2" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- Formatting bar (anchored above keyboard) -->
+    <LinearLayout
+        android:id="@+id/formatting_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@color/note_card_beige"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:elevation="4dp"
+        android:gravity="center_vertical">
+
+        <!-- Bold -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_bold"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="@string/format_bold"
+            android:textStyle="bold"
+            android:textColor="@color/text_dark"
+            android:minWidth="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            app:cornerRadius="4dp" />
+
+        <!-- Italic -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_italic"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="@string/format_italic"
+            android:textStyle="italic"
+            android:textColor="@color/text_dark"
+            android:minWidth="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            app:cornerRadius="4dp" />
+
+        <!-- Size Small -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_size_small"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="S"
+            android:textSize="12sp"
+            android:textColor="@color/text_dark"
+            android:minWidth="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            app:cornerRadius="4dp" />
+
+        <!-- Size Medium -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_size_medium"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="M"
+            android:textSize="16sp"
+            android:textColor="@color/text_dark"
+            android:minWidth="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            app:cornerRadius="4dp" />
+
+        <!-- Size Large -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_size_large"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="L"
+            android:textSize="20sp"
+            android:textColor="@color/text_dark"
+            android:minWidth="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            app:cornerRadius="4dp" />
+
+        <!-- Checklist -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_checklist"
+            style="@style/Widget.Material3.Button.TextButton.Icon"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="☐"
+            android:textSize="18sp"
+            android:textColor="@color/text_dark"
+            android:minWidth="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            app:cornerRadius="4dp" />
+
+        <!-- Add Photo -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_add_photo"
+            style="@style/Widget.Material3.Button.TextButton.Icon"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:minWidth="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            app:icon="@android:drawable/ic_menu_camera"
+            app:iconGravity="textStart"
+            app:iconTint="@color/orange_primary"
+            app:iconSize="20dp"
+            app:cornerRadius="4dp" />
+
+        <!-- Add Audio -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_add_audio"
+            style="@style/Widget.Material3.Button.TextButton.Icon"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:minWidth="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            app:icon="@android:drawable/ic_btn_speak_now"
+            app:iconGravity="textStart"
+            app:iconTint="@color/orange_primary"
+            app:iconSize="20dp"
+            app:cornerRadius="4dp" />
+    </LinearLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
+

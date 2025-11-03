@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Note Editor strings -->
+    <string name="edit_note">Edit Note</string>
+    <string name="new_note_title">New Note</string>
+    <string name="note_title_hint">Title</string>
+    <string name="note_body_hint">Start typing…</string>
+    
+    <!-- Toolbar actions -->
+    <string name="action_save">Save</string>
+    <string name="action_discard">Discard</string>
+    <string name="action_pin">Pin</string>
+    <string name="action_unpin">Unpin</string>
+    
+    <!-- Chips -->
+    <string name="chip_add_tag">+ Tag</string>
+    <string name="chip_location">Location</string>
+    <string name="chip_reminder">Reminder</string>
+    <string name="chip_no_location">No location</string>
+    <string name="chip_no_reminder">No reminder</string>
+    
+    <!-- Formatting bar -->
+    <string name="format_bold">Bold</string>
+    <string name="format_italic">Italic</string>
+    <string name="format_size_small">Small</string>
+    <string name="format_size_medium">Medium</string>
+    <string name="format_size_large">Large</string>
+    <string name="format_checklist">Checklist</string>
+    <string name="format_add_photo">Add Photo</string>
+    <string name="format_add_audio">Add Voice</string>
+    
+    <!-- Attachments -->
+    <string name="attachments_label">Attachments</string>
+    <string name="remove_attachment">Remove</string>
+    <string name="play_audio">Play</string>
+    <string name="pause_audio">Pause</string>
+    
+    <!-- Dialogs -->
+    <string name="dialog_add_location_title">Set Location</string>
+    <string name="dialog_location_manual">Manual address</string>
+    <string name="dialog_location_auto">Detect automatically</string>
+    <string name="dialog_location_hint">Enter address</string>
+    <string name="dialog_add_reminder_title">Add Reminder</string>
+    <string name="dialog_reminder_time">Time</string>
+    <string name="dialog_reminder_geofence">Geofence</string>
+    <string name="dialog_reminder_date">Date</string>
+    <string name="dialog_reminder_time_label">Time</string>
+    <string name="dialog_geofence_address">Address</string>
+    <string name="dialog_geofence_radius">Radius (meters)</string>
+    <string name="dialog_add_tag_title">Add Tags</string>
+    <string name="dialog_tag_hint">Enter tag name</string>
+    <string name="dialog_tag_add">Add</string>
+    
+    <!-- Buttons -->
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_ok">OK</string>
+    <string name="btn_save">Save</string>
+    <string name="btn_clear">Clear</string>
+    
+    <!-- Messages -->
+    <string name="saved_message">Saved</string>
+    <string name="discard_confirm_title">Discard changes?</string>
+    <string name="discard_confirm_message">You have unsaved changes. Are you sure you want to discard them?</string>
+    <string name="note_saved">Note saved successfully</string>
+    
+    <!-- Content descriptions -->
+    <string name="cd_back">Back</string>
+    <string name="cd_save">Save note</string>
+    <string name="cd_pin">Pin note</string>
+    <string name="cd_photo_thumbnail">Photo thumbnail</string>
+    <string name="cd_remove_attachment">Remove attachment</string>
+    <string name="cd_play_audio">Play audio</string>
+</resources>
+

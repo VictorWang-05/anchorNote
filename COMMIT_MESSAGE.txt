@@ -1,0 +1,45 @@
+feat: Implement Note Editor and Backend Integration
+
+## Major Changes:
+- Implemented complete Note Editor screen with all features
+- Integrated with backend REST API using Retrofit
+- Added authentication system (register/login with JWT tokens)
+- Updated homepage with login/logout functionality
+- Fixed frontend-backend API alignment issues
+
+## New Features:
+✅ Note creation with title and text
+✅ Tag management (add/remove tags with color chips)
+✅ Time-based and location-based reminders
+✅ Photo and audio attachments
+✅ Checklist functionality
+✅ User authentication (Supabase JWT)
+✅ Homepage login/logout
+
+## Technical Details:
+- Added Retrofit 2.9.0, OkHttp 4.12.0, Gson 2.10.1
+- Created 24 new files (activities, models, DTOs, layouts)
+- Modified 9 files (MainActivity, models, repository)
+- Fixed ID type mismatches (Long → String)
+- Added custom Gson adapter for ISO-8601 timestamps
+- Enabled core library desugaring for Java 8 APIs
+
+## Files Created:
+- NoteEditorActivity + layout
+- LoginActivity + LoginOnlyActivity + layouts
+- API infrastructure (ApiClient, ApiService, AuthInterceptor)
+- Models: Tag, Geofence
+- DTOs: 11 request/response classes
+- Comprehensive documentation (7 .md files)
+
+## Testing Status:
+✅ User registration working
+✅ User login working
+✅ JWT token auto-injection working
+✅ Note creation and saving working
+✅ Timestamp parsing working
+
+Backend URL: https://anchornotesteam3-production.up.railway.app/
+
+See TODAYS_CHANGES_SUMMARY.md for complete details.
+
