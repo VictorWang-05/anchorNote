@@ -53,7 +53,11 @@ public class NoteRepository {
     /**
      * Get the ApiService - always fetches fresh to ensure we have the latest token
      */
-    private ApiService getApiService() {
+    /**
+     * Get ApiService instance for making API calls
+     * Exposed publicly for advanced use cases (like geofence sync)
+     */
+    public ApiService getApiService() {
         return ApiClient.getApiService(context);
     }
     
@@ -81,6 +85,16 @@ public class NoteRepository {
     
     public interface SimpleCallback {
         void onSuccess();
+        void onError(String error);
+    }
+    
+    public interface TemplateCallback {
+        void onSuccess(com.example.anchornotes_team3.model.Template template);
+        void onError(String error);
+    }
+    
+    public interface TemplatesCallback {
+        void onSuccess(List<com.example.anchornotes_team3.model.Template> templates);
         void onError(String error);
     }
     
@@ -299,10 +313,100 @@ public class NoteRepository {
                     callback.onError("Failed to pin note: " + response.code());
                 }
             }
-            
+
             @Override
             public void onFailure(@NonNull Call<NoteResponse> call, @NonNull Throwable t) {
                 Log.e(TAG, "Error pinning note", t);
+                callback.onError("Network error: " + t.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Filter notes by criteria
+     */
+    public void filterNotes(List<String> tagIds, Boolean pinned, Boolean hasPhoto, Boolean hasAudio, NotesCallback callback) {
+        // Convert empty list to null for API call
+        List<String> apiTagIds = (tagIds != null && !tagIds.isEmpty()) ? tagIds : null;
+
+        getApiService().filterNotes(apiTagIds, pinned, hasPhoto, hasAudio).enqueue(new Callback<SearchResponse>() {
+            @Override
+            public void onResponse(@NonNull Call<SearchResponse> call, @NonNull Response<SearchResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    SearchResponse searchResponse = response.body();
+                    if (searchResponse.getItems() != null) {
+                        List<Note> notes = searchResponse.getItems().stream()
+                                .map(NoteRepository.this::mapToNote)
+                                .collect(Collectors.toList());
+                        callback.onSuccess(notes);
+                    } else {
+                        callback.onSuccess(new ArrayList<>());
+                    }
+                } else {
+                    String errorMsg = "Failed to filter notes: " + response.code();
+                    try {
+                        if (response.errorBody() != null) {
+                            errorMsg = response.errorBody().string();
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error reading error body", e);
+                    }
+                    Log.e(TAG, errorMsg);
+                    callback.onError(errorMsg);
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<SearchResponse> call, @NonNull Throwable t) {
+                Log.e(TAG, "Error filtering notes", t);
+                callback.onError("Network error: " + t.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Search notes by query string
+     */
+    public void searchNotes(String query, NotesCallback callback) {
+        if (query == null || query.trim().isEmpty()) {
+            // If query is empty, return all notes instead
+            getAllNotes(callback);
+            return;
+        }
+
+        Log.d(TAG, "Searching notes with query: " + query);
+        getApiService().searchNotes(query).enqueue(new Callback<SearchResponse>() {
+            @Override
+            public void onResponse(@NonNull Call<SearchResponse> call, @NonNull Response<SearchResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    SearchResponse searchResponse = response.body();
+                    if (searchResponse.getItems() != null) {
+                        List<Note> notes = searchResponse.getItems().stream()
+                                .map(NoteRepository.this::mapToNote)
+                                .collect(Collectors.toList());
+                        Log.d(TAG, "Found " + searchResponse.getTotal() + " notes matching query: " + query);
+                        callback.onSuccess(notes);
+                    } else {
+                        Log.e(TAG, "Search response items is null");
+                        callback.onError("No results found");
+                    }
+                } else {
+                    String errorMsg = "Failed to search notes: " + response.code();
+                    try {
+                        if (response.errorBody() != null) {
+                            errorMsg = response.errorBody().string();
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error reading error body", e);
+                    }
+                    Log.e(TAG, errorMsg);
+                    callback.onError(errorMsg);
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<SearchResponse> call, @NonNull Throwable t) {
+                Log.e(TAG, "Error searching notes", t);
                 callback.onError("Network error: " + t.getMessage());
             }
         });
@@ -399,7 +503,8 @@ public class NoteRepository {
         GeofenceRequest request = new GeofenceRequest(
                 geofence.getLatitude(),
                 geofence.getLongitude(),
-                geofence.getRadius()
+                geofence.getRadius(),
+                geofence.getAddress()
         );
         
         getApiService().setGeofence(noteId, request).enqueue(new Callback<NoteResponse>() {
@@ -455,37 +560,53 @@ public class NoteRepository {
      */
     public void uploadPhoto(String noteId, Uri photoUri, AttachmentCallback callback) {
         try {
+            Log.d(TAG, "📸 Starting photo upload for note: " + noteId + ", URI: " + photoUri);
             File file = createFileFromUri(photoUri);
+            Log.d(TAG, "📸 Created temp file: " + file.getAbsolutePath() + ", size: " + file.length() + " bytes");
+
             RequestBody requestFile = RequestBody.create(MediaType.parse("image/*"), file);
             MultipartBody.Part body = MultipartBody.Part.createFormData("file", file.getName(), requestFile);
-            
+
+            Log.d(TAG, "📸 Sending upload request to backend...");
             getApiService().uploadPhoto(noteId, body).enqueue(new Callback<NoteResponse>() {
                 @Override
-                public void onResponse(@NonNull Call<NoteResponse> call, 
+                public void onResponse(@NonNull Call<NoteResponse> call,
                                      @NonNull Response<NoteResponse> response) {
+                    Log.d(TAG, "📸 Upload response code: " + response.code());
                     if (response.isSuccessful() && response.body() != null) {
                         NoteResponse noteResponse = response.body();
                         // Extract attachment info from the image field
                         String attachmentId = noteResponse.getImage() != null ? noteResponse.getImage().getId() : null;
                         String mediaUrl = noteResponse.getImage() != null ? noteResponse.getImage().getUrl() : null;
+                        Log.d(TAG, "✅ Photo upload successful! Attachment ID: " + attachmentId + ", URL: " + mediaUrl);
                         callback.onSuccess(attachmentId, mediaUrl);
                     } else {
-                        callback.onError("Failed to upload photo: " + response.code());
+                        String errorBody = "";
+                        try {
+                            if (response.errorBody() != null) {
+                                errorBody = response.errorBody().string();
+                            }
+                        } catch (IOException e) {
+                            Log.e(TAG, "Error reading error body", e);
+                        }
+                        Log.e(TAG, "❌ Photo upload failed: " + response.code() + ", error: " + errorBody);
+                        callback.onError("Failed to upload photo: " + response.code() + " - " + errorBody);
                     }
                     // Clean up temp file
                     file.delete();
+                    Log.d(TAG, "🗑️ Temp file deleted");
                 }
-                
+
                 @Override
                 public void onFailure(@NonNull Call<NoteResponse> call, @NonNull Throwable t) {
-                    Log.e(TAG, "Error uploading photo", t);
+                    Log.e(TAG, "❌ Network error uploading photo", t);
                     callback.onError("Network error: " + t.getMessage());
                     file.delete();
                 }
             });
         } catch (IOException e) {
-            Log.e(TAG, "Error creating file from URI", e);
-            callback.onError("Failed to read photo file");
+            Log.e(TAG, "❌ Error creating file from URI", e);
+            callback.onError("Failed to read photo file: " + e.getMessage());
         }
     }
     
@@ -494,39 +615,109 @@ public class NoteRepository {
      */
     public void uploadAudio(String noteId, Uri audioUri, int durationSec, AttachmentCallback callback) {
         try {
+            Log.d(TAG, "🎵 Starting audio upload for note: " + noteId + ", URI: " + audioUri + ", duration: " + durationSec + "s");
             File file = createFileFromUri(audioUri);
+            Log.d(TAG, "🎵 Created temp file: " + file.getAbsolutePath() + ", size: " + file.length() + " bytes");
+
             RequestBody requestFile = RequestBody.create(MediaType.parse("audio/*"), file);
             MultipartBody.Part body = MultipartBody.Part.createFormData("file", file.getName(), requestFile);
-            
+
+            Log.d(TAG, "🎵 Sending upload request to backend...");
             getApiService().uploadAudio(noteId, body, durationSec).enqueue(new Callback<NoteResponse>() {
                 @Override
                 public void onResponse(@NonNull Call<NoteResponse> call,
                                      @NonNull Response<NoteResponse> response) {
+                    Log.d(TAG, "🎵 Upload response code: " + response.code());
                     if (response.isSuccessful() && response.body() != null) {
                         NoteResponse noteResponse = response.body();
                         // Extract attachment info from the audio field
                         String attachmentId = noteResponse.getAudio() != null ? noteResponse.getAudio().getId() : null;
                         String mediaUrl = noteResponse.getAudio() != null ? noteResponse.getAudio().getUrl() : null;
+                        Log.d(TAG, "✅ Audio upload successful! Attachment ID: " + attachmentId + ", URL: " + mediaUrl);
                         callback.onSuccess(attachmentId, mediaUrl);
                     } else {
-                        callback.onError("Failed to upload audio: " + response.code());
+                        String errorBody = "";
+                        try {
+                            if (response.errorBody() != null) {
+                                errorBody = response.errorBody().string();
+                            }
+                        } catch (IOException e) {
+                            Log.e(TAG, "Error reading error body", e);
+                        }
+                        Log.e(TAG, "❌ Audio upload failed: " + response.code() + ", error: " + errorBody);
+                        callback.onError("Failed to upload audio: " + response.code() + " - " + errorBody);
                     }
                     file.delete();
+                    Log.d(TAG, "🗑️ Temp file deleted");
                 }
-                
+
                 @Override
                 public void onFailure(@NonNull Call<NoteResponse> call, @NonNull Throwable t) {
-                    Log.e(TAG, "Error uploading audio", t);
+                    Log.e(TAG, "❌ Network error uploading audio", t);
                     callback.onError("Network error: " + t.getMessage());
                     file.delete();
                 }
             });
         } catch (IOException e) {
-            Log.e(TAG, "Error creating file from URI", e);
-            callback.onError("Failed to read audio file");
+            Log.e(TAG, "❌ Error creating file from URI", e);
+            callback.onError("Failed to read audio file: " + e.getMessage());
         }
     }
-    
+
+    /**
+     * Delete a photo attachment from backend
+     */
+    public void deletePhotoAttachment(String noteId, String attachmentId, SimpleCallback callback) {
+        Log.d(TAG, "🗑️ Deleting photo attachment: " + attachmentId + " from note: " + noteId);
+
+        getApiService().deletePhotoAttachment(noteId, attachmentId).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
+                if (response.isSuccessful()) {
+                    Log.d(TAG, "✅ Photo attachment deleted successfully");
+                    callback.onSuccess();
+                } else {
+                    String errorMsg = "Failed to delete photo: " + response.code();
+                    Log.e(TAG, "❌ " + errorMsg);
+                    callback.onError(errorMsg);
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {
+                Log.e(TAG, "❌ Network error deleting photo", t);
+                callback.onError("Network error: " + t.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Delete an audio attachment from backend
+     */
+    public void deleteAudioAttachment(String noteId, String attachmentId, SimpleCallback callback) {
+        Log.d(TAG, "🗑️ Deleting audio attachment: " + attachmentId + " from note: " + noteId);
+
+        getApiService().deleteAudioAttachment(noteId, attachmentId).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
+                if (response.isSuccessful()) {
+                    Log.d(TAG, "✅ Audio attachment deleted successfully");
+                    callback.onSuccess();
+                } else {
+                    String errorMsg = "Failed to delete audio: " + response.code();
+                    Log.e(TAG, "❌ " + errorMsg);
+                    callback.onError(errorMsg);
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {
+                Log.e(TAG, "❌ Network error deleting audio", t);
+                callback.onError("Network error: " + t.getMessage());
+            }
+        });
+    }
+
     // ==================== Helper Methods ====================
     
     /**
@@ -602,5 +793,195 @@ public class NoteRepository {
             }
         }
         return tempFile;
+    }
+    
+    // ==================== Template Operations ====================
+    
+    /**
+     * Get all templates for the current user
+     */
+    public void getAllTemplates(TemplatesCallback callback) {
+        Log.d(TAG, "📋 Fetching all templates...");
+        
+        getApiService().getAllTemplates().enqueue(new Callback<List<com.example.anchornotes_team3.dto.TemplateResponse>>() {
+            @Override
+            public void onResponse(@NonNull Call<List<com.example.anchornotes_team3.dto.TemplateResponse>> call,
+                                 @NonNull Response<List<com.example.anchornotes_team3.dto.TemplateResponse>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<com.example.anchornotes_team3.model.Template> templates = response.body().stream()
+                        .map(NoteRepository.this::mapToTemplate)
+                        .collect(Collectors.toList());
+                    Log.d(TAG, "✅ Loaded " + templates.size() + " templates");
+                    callback.onSuccess(templates);
+                } else {
+                    String errorMsg = "Failed to load templates: " + response.code();
+                    Log.e(TAG, "❌ " + errorMsg);
+                    callback.onError(errorMsg);
+                }
+            }
+            
+            @Override
+            public void onFailure(@NonNull Call<List<com.example.anchornotes_team3.dto.TemplateResponse>> call,
+                                @NonNull Throwable t) {
+                Log.e(TAG, "❌ Network error loading templates", t);
+                callback.onError("Network error: " + t.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Create a new template
+     */
+    public void createTemplate(com.example.anchornotes_team3.model.Template template, TemplateCallback callback) {
+        Log.d(TAG, "📋 Creating template: " + template.getName());
+        
+        // Convert template to request DTO
+        com.example.anchornotes_team3.dto.CreateTemplateRequest request = new com.example.anchornotes_team3.dto.CreateTemplateRequest();
+        request.setName(template.getName());
+        request.setText(template.getText());
+        request.setPinned(template.getPinned());
+        request.setGeofence(template.getGeofence());
+        
+        // Convert tag IDs from String to Long
+        if (template.getTags() != null && !template.getTags().isEmpty()) {
+            List<Long> tagIds = template.getTags().stream()
+                .map(tag -> {
+                    try {
+                        return Long.parseLong(tag.getId());
+                    } catch (NumberFormatException e) {
+                        Log.w(TAG, "Invalid tag ID format: " + tag.getId());
+                        return null;
+                    }
+                })
+                .filter(id -> id != null)
+                .collect(Collectors.toList());
+            request.setTagIds(tagIds);
+        }
+        
+        getApiService().createTemplate(request).enqueue(new Callback<com.example.anchornotes_team3.dto.TemplateResponse>() {
+            @Override
+            public void onResponse(@NonNull Call<com.example.anchornotes_team3.dto.TemplateResponse> call,
+                                 @NonNull Response<com.example.anchornotes_team3.dto.TemplateResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    com.example.anchornotes_team3.model.Template createdTemplate = mapToTemplate(response.body());
+                    Log.d(TAG, "✅ Template created: " + createdTemplate.getId());
+                    callback.onSuccess(createdTemplate);
+                } else {
+                    String errorMsg = "Failed to create template: " + response.code();
+                    Log.e(TAG, "❌ " + errorMsg);
+                    callback.onError(errorMsg);
+                }
+            }
+            
+            @Override
+            public void onFailure(@NonNull Call<com.example.anchornotes_team3.dto.TemplateResponse> call,
+                                @NonNull Throwable t) {
+                Log.e(TAG, "❌ Network error creating template", t);
+                callback.onError("Network error: " + t.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Delete a template
+     */
+    public void deleteTemplate(String templateId, SimpleCallback callback) {
+        Log.d(TAG, "🗑️ Deleting template: " + templateId);
+        
+        getApiService().deleteTemplate(templateId).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
+                if (response.isSuccessful()) {
+                    Log.d(TAG, "✅ Template deleted successfully");
+                    callback.onSuccess();
+                } else {
+                    String errorMsg = "Failed to delete template: " + response.code();
+                    Log.e(TAG, "❌ " + errorMsg);
+                    callback.onError(errorMsg);
+                }
+            }
+            
+            @Override
+            public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {
+                Log.e(TAG, "❌ Network error deleting template", t);
+                callback.onError("Network error: " + t.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Instantiate a template into a new note
+     */
+    public void instantiateTemplate(String templateId, String noteTitle, NoteCallback callback) {
+        Log.d(TAG, "📝 Instantiating template: " + templateId + " with title: " + noteTitle);
+        
+        com.example.anchornotes_team3.dto.InstantiateTemplateRequest request = 
+            new com.example.anchornotes_team3.dto.InstantiateTemplateRequest(noteTitle);
+        
+        getApiService().instantiateTemplate(templateId, request).enqueue(new Callback<NoteResponse>() {
+            @Override
+            public void onResponse(@NonNull Call<NoteResponse> call, @NonNull Response<NoteResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Note note = mapToNote(response.body());
+                    Log.d(TAG, "✅ Template instantiated into note: " + note.getId());
+                    callback.onSuccess(note);
+                } else {
+                    String errorMsg = "Failed to instantiate template: " + response.code();
+                    Log.e(TAG, "❌ " + errorMsg);
+                    callback.onError(errorMsg);
+                }
+            }
+            
+            @Override
+            public void onFailure(@NonNull Call<NoteResponse> call, @NonNull Throwable t) {
+                Log.e(TAG, "❌ Network error instantiating template", t);
+                callback.onError("Network error: " + t.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Map TemplateResponse DTO to Template model
+     */
+    private com.example.anchornotes_team3.model.Template mapToTemplate(com.example.anchornotes_team3.dto.TemplateResponse response) {
+        com.example.anchornotes_team3.model.Template template = new com.example.anchornotes_team3.model.Template();
+        template.setId(response.getId());
+        template.setName(response.getName());
+        template.setText(response.getText());
+        template.setPinned(response.getPinned() != null && response.getPinned());
+        
+        // Map tags
+        if (response.getTags() != null) {
+            template.setTags(response.getTags());
+        }
+        
+        // Map geofence
+        if (response.getGeofence() != null) {
+            template.setGeofence(response.getGeofence());
+        }
+        
+        // Map attachments
+        if (response.getImage() != null) {
+            TemplateResponse.AttachmentResponse img = response.getImage();
+            Attachment photoAttachment = new Attachment(
+                    img.getId(),
+                    Attachment.AttachmentType.PHOTO,
+                    img.getUrl(),
+                    null
+            );
+            template.setImage(photoAttachment);
+        }
+        if (response.getAudio() != null) {
+            TemplateResponse.AttachmentResponse aud = response.getAudio();
+            Attachment audioAttachment = new Attachment(
+                    aud.getId(),
+                    Attachment.AttachmentType.AUDIO,
+                    aud.getUrl(),
+                    aud.getDurationSec()
+            );
+            template.setAudio(audioAttachment);
+        }
+        
+        return template;
     }
 }

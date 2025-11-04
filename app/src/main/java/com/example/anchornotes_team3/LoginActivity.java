@@ -44,10 +44,20 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_login);
         
-        // Initialize auth manager
+        // Initialize auth manager first
         authManager = AuthManager.getInstance(this);
+        
+        // Check if user is already logged in - redirect to main activity
+        if (authManager.isLoggedIn()) {
+            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
+            return;
+        }
+        
+        setContentView(R.layout.activity_login);
         
         // Initialize API service
         apiService = ApiClient.getApiService(this);
@@ -68,10 +78,6 @@ public class LoginActivity extends AppCompatActivity {
             Intent intent = new Intent(LoginActivity.this, LoginOnlyActivity.class);
             startActivity(intent);
         });
-        
-        // Back button to return to home
-        MaterialButton btnBackToHome = findViewById(R.id.btn_back_to_home);
-        btnBackToHome.setOnClickListener(v -> finish());
     }
     
     private void handleRegister() {

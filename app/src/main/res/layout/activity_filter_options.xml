@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/background_beige">
+
+    <!-- Toolbar -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/orange_primary"
+        android:elevation="4dp"
+        app:title="Filter Notes"
+        app:titleTextColor="@color/white"
+        app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"
+        app:navigationIconTint="@color/white" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Filter by Tags Section -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Filter by Tags"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/orange_dark"
+                android:layout_marginBottom="8dp" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chip_group_tags"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:chipSpacingHorizontal="8dp"
+                app:singleSelection="false" />
+
+            <TextView
+                android:id="@+id/tv_no_tags"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="No tags available"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="24dp"
+                android:visibility="gone" />
+
+
+            <!-- Attachment Filters Section -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Attachments"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/orange_dark"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp" />
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/checkbox_has_photo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Has Photo"
+                android:textColor="@color/text_dark"
+                app:buttonTint="@color/orange_primary" />
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/checkbox_has_audio"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Has Audio"
+                android:textColor="@color/text_dark"
+                android:layout_marginBottom="24dp"
+                app:buttonTint="@color/orange_primary" />
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="@color/white"
+        android:elevation="8dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_clear_filter"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="Clear"
+            android:textColor="@color/orange_primary"
+            app:strokeColor="@color/orange_primary"
+            app:cornerRadius="12dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_apply_filter"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="Apply Filter"
+            android:textColor="@color/white"
+            android:backgroundTint="@color/orange_primary"
+            app:cornerRadius="12dp" />
+    </LinearLayout>
+
+</LinearLayout>

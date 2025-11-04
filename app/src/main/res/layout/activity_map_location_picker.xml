@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Google Map -->
+    <fragment
+        android:id="@+id/map"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Search bar overlay (Places Autocomplete) -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="4dp">
+
+        <fragment
+            android:id="@+id/autocomplete_fragment"
+            android:name="com.google.android.libraries.places.widget.AutocompleteSupportFragment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Bottom control panel -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="8dp"
+        android:layout_margin="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Selected Address Display -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Selected Location"
+                android:textStyle="bold"
+                android:textSize="14sp"
+                android:textColor="@color/text_dark"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tv_selected_address"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Tap on the map to select a location"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="16dp"
+                android:minLines="2" />
+
+            <!-- Radius Slider -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Geofence Radius"
+                android:textStyle="bold"
+                android:textSize="14sp"
+                android:textColor="@color/text_dark"
+                android:layout_marginBottom="4dp" />
+
+            <com.google.android.material.slider.Slider
+                android:id="@+id/slider_map_radius"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:valueFrom="50"
+                android:valueTo="1000"
+                android:value="200"
+                android:stepSize="50"
+                app:thumbColor="@color/orange_primary"
+                app:trackColorActive="@color/orange_primary"
+                app:trackColorInactive="@color/separator_orange" />
+
+            <TextView
+                android:id="@+id/tv_map_radius_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="200 meters"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Action Buttons -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="end">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_cancel_location"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Cancel"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginEnd="8dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_confirm_location"
+                    style="@style/Widget.Material3.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Confirm Location"
+                    android:backgroundTint="@color/orange_primary" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
+

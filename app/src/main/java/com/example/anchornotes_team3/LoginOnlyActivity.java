@@ -38,11 +38,23 @@ public class LoginOnlyActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // Initialize auth manager first
+        authManager = AuthManager.getInstance(this);
+        
+        // Check if user is already logged in - redirect to main activity
+        if (authManager.isLoggedIn()) {
+            Intent intent = new Intent(LoginOnlyActivity.this, MainActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
+            return;
+        }
+        
         setContentView(R.layout.activity_login_only);
 
         // Initialize API and Auth
         apiService = ApiClient.getApiService(this);
-        authManager = AuthManager.getInstance(this);
 
         // Find views
         etEmail = findViewById(R.id.et_email);
@@ -54,12 +66,10 @@ public class LoginOnlyActivity extends AppCompatActivity {
         // Set up click listeners
         btnLogin.setOnClickListener(v -> handleLogin());
         btnBackToRegister.setOnClickListener(v -> {
-            finish(); // Go back to registration screen
+            // Navigate to registration screen
+            Intent intent = new Intent(LoginOnlyActivity.this, LoginActivity.class);
+            startActivity(intent);
         });
-        
-        // Back button to return to home
-        MaterialButton btnBackToHome = findViewById(R.id.btn_back_to_home);
-        btnBackToHome.setOnClickListener(v -> finish());
     }
 
     private void handleLogin() {

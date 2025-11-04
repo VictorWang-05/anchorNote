@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.media.MediaRecorder;
 import android.net.Uri;
 import android.provider.MediaStore;
 import androidx.core.app.ActivityCompat;
@@ -32,6 +33,8 @@ public class MediaHelper {
     private final Activity activity;
     private Uri currentPhotoUri;
     private File currentAudioFile;
+    private MediaRecorder mediaRecorder;
+    private long recordingStartTime;
 
     public MediaHelper(Activity activity) {
         this.activity = activity;
@@ -119,12 +122,55 @@ public class MediaHelper {
 
     /**
      * Start audio recording
-     * Note: This is a simplified stub. Real implementation would use MediaRecorder
      */
     public File startAudioRecording() throws IOException {
+        // Create audio file first
         currentAudioFile = createAudioFile();
-        // TODO: Implement MediaRecorder setup and start
-        // For now, return the file that would be used
+        recordingStartTime = System.currentTimeMillis();
+
+        android.util.Log.d("MediaHelper", "🎙️ Creating audio file: " + currentAudioFile.getAbsolutePath());
+        android.util.Log.d("MediaHelper", "🎙️ File exists: " + currentAudioFile.exists());
+
+        // Initialize MediaRecorder
+        mediaRecorder = new MediaRecorder();
+
+        try {
+            // Set audio source FIRST
+            mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+
+            // Set output format SECOND (must be before setOutputFile on some devices)
+            mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+
+            // Set audio encoder THIRD
+            mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+
+            // Set output file LAST (this is critical!)
+            mediaRecorder.setOutputFile(currentAudioFile.getAbsolutePath());
+
+            // Prepare the recorder
+            mediaRecorder.prepare();
+
+            // Start recording
+            mediaRecorder.start();
+
+            android.util.Log.d("MediaHelper", "✅ Audio recording started successfully");
+            android.util.Log.d("MediaHelper", "📁 File size after start: " + currentAudioFile.length());
+        } catch (Exception e) {
+            android.util.Log.e("MediaHelper", "❌ Failed to start audio recording", e);
+            // Clean up on failure
+            if (mediaRecorder != null) {
+                try {
+                    mediaRecorder.release();
+                } catch (Exception ignored) {}
+                mediaRecorder = null;
+            }
+            if (currentAudioFile != null && currentAudioFile.exists()) {
+                currentAudioFile.delete();
+                currentAudioFile = null;
+            }
+            throw new IOException("Failed to start recording: " + e.getMessage(), e);
+        }
+
         return currentAudioFile;
     }
 
@@ -133,11 +179,92 @@ public class MediaHelper {
      * Returns the URI of the recorded audio file
      */
     public Uri stopAudioRecording() {
-        // TODO: Implement MediaRecorder stop and release
-        if (currentAudioFile != null && currentAudioFile.exists()) {
-            return Uri.fromFile(currentAudioFile);
+        if (mediaRecorder != null) {
+            try {
+                android.util.Log.d("MediaHelper", "🎙️ Stopping audio recording...");
+
+                // Stop recording
+                mediaRecorder.stop();
+
+                android.util.Log.d("MediaHelper", "🎙️ Recording stopped, releasing MediaRecorder");
+
+                // Release the recorder
+                mediaRecorder.release();
+                mediaRecorder = null;
+
+                // Check file validity
+                if (currentAudioFile != null && currentAudioFile.exists()) {
+                    long fileSize = currentAudioFile.length();
+                    android.util.Log.d("MediaHelper", "✅ Audio file saved: " + currentAudioFile.getAbsolutePath());
+                    android.util.Log.d("MediaHelper", "📁 File size: " + fileSize + " bytes");
+
+                    if (fileSize > 0) {
+                        return Uri.fromFile(currentAudioFile);
+                    } else {
+                        android.util.Log.e("MediaHelper", "❌ Audio file is empty (0 bytes)!");
+                        return null;
+                    }
+                } else {
+                    android.util.Log.e("MediaHelper", "❌ Audio file not found after recording");
+                }
+            } catch (RuntimeException e) {
+                android.util.Log.e("MediaHelper", "❌ Error stopping audio recording", e);
+                // If stop fails, release the recorder anyway
+                if (mediaRecorder != null) {
+                    try {
+                        mediaRecorder.release();
+                    } catch (Exception ignored) {}
+                    mediaRecorder = null;
+                }
+
+                // Check if we got any data despite the error
+                if (currentAudioFile != null && currentAudioFile.exists() && currentAudioFile.length() > 0) {
+                    android.util.Log.w("MediaHelper", "⚠️ Recording had error but file exists with data, returning it anyway");
+                    return Uri.fromFile(currentAudioFile);
+                }
+            }
         }
         return null;
+    }
+
+    /**
+     * Check if currently recording
+     */
+    public boolean isRecording() {
+        return mediaRecorder != null;
+    }
+
+    /**
+     * Get the duration of current recording in seconds
+     */
+    public int getRecordingDuration() {
+        if (recordingStartTime > 0) {
+            return (int) ((System.currentTimeMillis() - recordingStartTime) / 1000);
+        }
+        return 0;
+    }
+
+    /**
+     * Cancel audio recording without saving
+     */
+    public void cancelAudioRecording() {
+        if (mediaRecorder != null) {
+            try {
+                mediaRecorder.stop();
+            } catch (RuntimeException e) {
+                // Ignore if stop fails
+            }
+            mediaRecorder.release();
+            mediaRecorder = null;
+        }
+
+        if (currentAudioFile != null && currentAudioFile.exists()) {
+            currentAudioFile.delete();
+            currentAudioFile = null;
+        }
+
+        recordingStartTime = 0;
+        android.util.Log.d("MediaHelper", "🎙️ Audio recording cancelled");
     }
 
     /**

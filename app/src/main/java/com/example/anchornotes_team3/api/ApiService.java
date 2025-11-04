@@ -76,6 +76,12 @@ public interface ApiService {
     @DELETE("api/notes/{id}/reminder")
     Call<Void> clearReminders(@Path("id") String id);
     
+    // ==================== Geofences ====================
+    
+    // List all geofences for Android registration/sync
+    @GET("api/geofences")
+    Call<List<GeofenceRegistrationResponse>> listGeofences();
+    
     // ==================== Attachments ====================
     
     @Multipart
@@ -100,17 +106,34 @@ public interface ApiService {
     Call<Void> deleteAudioAttachment(@Path("noteId") String noteId, @Path("attachmentId") String attachmentId);
     
     // ==================== Search & Filter ====================
-    
+
     @GET("api/notes/search")
-    Call<List<NoteResponse>> searchNotes(@Query("q") String query);
+    Call<SearchResponse> searchNotes(@Query("q") String query);
     
     @GET("api/notes/filter")
-    Call<List<NoteResponse>> filterNotes(
+    Call<SearchResponse> filterNotes(
             @Query("tagIds") List<String> tagIds,
             @Query("pinned") Boolean pinned,
             @Query("hasPhoto") Boolean hasPhoto,
             @Query("hasAudio") Boolean hasAudio
     );
+    
+    // ==================== Templates ====================
+    
+    @GET("api/templates")
+    Call<List<TemplateResponse>> getAllTemplates();
+    
+    @POST("api/templates")
+    Call<TemplateResponse> createTemplate(@Body CreateTemplateRequest request);
+    
+    @PUT("api/templates/{id}")
+    Call<TemplateResponse> updateTemplate(@Path("id") String id, @Body CreateTemplateRequest request);
+    
+    @DELETE("api/templates/{id}")
+    Call<Void> deleteTemplate(@Path("id") String id);
+    
+    @POST("api/templates/{id}/instantiate")
+    Call<NoteResponse> instantiateTemplate(@Path("id") String id, @Body InstantiateTemplateRequest request);
     
     // ==================== Response DTO for upload ====================
     

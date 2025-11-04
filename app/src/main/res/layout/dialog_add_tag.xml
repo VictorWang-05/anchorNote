@@ -6,14 +6,6 @@
     android:orientation="vertical"
     android:padding="24dp">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/dialog_add_tag_title"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:textColor="@color/text_dark"
-        android:layout_marginBottom="16dp" />
 
     <!-- Tag input with chip group -->
     <com.google.android.material.textfield.TextInputLayout
@@ -27,6 +19,8 @@
         app:boxCornerRadiusBottomStart="8dp"
         app:boxCornerRadiusBottomEnd="8dp"
         app:boxStrokeColor="@color/orange_primary"
+        app:startIconDrawable="@android:drawable/ic_menu_edit"
+        app:startIconTint="@color/orange_primary"
         app:endIconMode="custom"
         app:endIconDrawable="@android:drawable/ic_input_add"
         app:endIconTint="@color/orange_primary">

@@ -6,21 +6,6 @@
     android:layout_height="match_parent"
     android:background="@color/background_beige">
 
-    <!-- Back Button -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_back_to_home"
-        style="@style/Widget.Material3.Button.TextButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:padding="12dp"
-        android:text="← Back"
-        android:textSize="16sp"
-        android:textColor="@color/orange_primary"
-        android:gravity="center"
-        android:contentDescription="@string/back_to_home" />
-
     <!-- Form Content -->
     <LinearLayout
         android:layout_width="match_parent"

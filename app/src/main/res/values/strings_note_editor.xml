@@ -15,9 +15,9 @@
     <!-- Chips -->
     <string name="chip_add_tag">+ Tag</string>
     <string name="chip_location">Location</string>
-    <string name="chip_reminder">Reminder</string>
-    <string name="chip_no_location">No location</string>
-    <string name="chip_no_reminder">No reminder</string>
+    <string name="chip_reminder">Time reminder</string>
+    <string name="chip_add_location">Add location</string>
+    <string name="chip_no_reminder">Time reminder</string>
     
     <!-- Formatting bar -->
     <string name="format_bold">Bold</string>
@@ -63,6 +63,16 @@
     <string name="discard_confirm_message">You have unsaved changes. Are you sure you want to discard them?</string>
     <string name="note_saved">Note saved successfully</string>
     
+    <!-- Location messages -->
+    <string name="location_saved">Location set</string>
+    <string name="location_removed">Location removed</string>
+    <string name="location_error">Failed to set location</string>
+    <string name="geocoding_error">Could not find location. Please try a different address.</string>
+    <string name="geocoding_in_progress">Finding location…</string>
+    <string name="reminder_cleared">Reminder cleared</string>
+    <string name="permission_location_required">Location permission required</string>
+    <string name="permission_location_rationale">Location access is needed to set a location for this note.</string>
+    
     <!-- Content descriptions -->
     <string name="cd_back">Back</string>
     <string name="cd_save">Save note</string>
@@ -70,5 +80,8 @@
     <string name="cd_photo_thumbnail">Photo thumbnail</string>
     <string name="cd_remove_attachment">Remove attachment</string>
     <string name="cd_play_audio">Play audio</string>
+    
+    <!-- Google Maps API Key - Replace with your actual key -->
+    <string name="google_maps_key" translatable="false">AIzaSyANs4lQigwpdpjXl1y2z4RKWFrNhiM9q0E</string>
 </resources>
 

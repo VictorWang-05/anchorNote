@@ -15,109 +15,24 @@
         android:textColor="@color/text_dark"
         android:layout_marginBottom="16dp" />
 
-    <!-- Reminder type tabs -->
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/tab_reminder_type"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:tabMode="fixed"
-        app:tabGravity="fill"
-        app:tabSelectedTextColor="@color/orange_primary"
-        app:tabIndicatorColor="@color/orange_primary"
-        app:tabTextColor="@color/text_secondary">
-
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/dialog_reminder_time" />
-
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/dialog_reminder_geofence" />
-    </com.google.android.material.tabs.TabLayout>
-
     <!-- Time reminder section -->
-    <LinearLayout
-        android:id="@+id/layout_time_reminder"
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/dialog_reminder_date"
+        android:textSize="14sp"
+        android:textColor="@color/text_dark"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Date and time will be set via DatePickerDialog and TimePickerDialog from code -->
+    <TextView
+        android:id="@+id/tv_selected_datetime"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginTop="16dp"
-        android:visibility="visible">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/dialog_reminder_date"
-            android:textSize="14sp"
-            android:textColor="@color/text_dark"
-            android:layout_marginBottom="8dp" />
-
-        <!-- Date and time will be set via DatePickerDialog and TimePickerDialog from code -->
-        <TextView
-            android:id="@+id/tv_selected_datetime"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="12dp"
-            android:background="@android:drawable/edit_text"
-            android:textSize="16sp"
-            android:textColor="@color/text_dark"
-            android:text="Tap to select date and time" />
-    </LinearLayout>
-
-    <!-- Geofence reminder section -->
-    <LinearLayout
-        android:id="@+id/layout_geofence_reminder"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginTop="16dp"
-        android:visibility="gone">
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/et_geo_address_layout"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/dialog_geofence_address"
-            app:boxStrokeColor="@color/orange_primary">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/et_geo_address"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textPostalAddress" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <!-- Radius slider -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/dialog_geofence_radius"
-            android:textSize="14sp"
-            android:textColor="@color/text_dark" />
-
-        <com.google.android.material.slider.Slider
-            android:id="@+id/slider_radius"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:valueFrom="50"
-            android:valueTo="1000"
-            android:value="200"
-            android:stepSize="50"
-            app:thumbColor="@color/orange_primary"
-            app:trackColorActive="@color/orange_primary"
-            app:trackColorInactive="@color/separator_orange" />
-
-        <TextView
-            android:id="@+id/tv_radius_value"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="200 meters"
-            android:textSize="12sp"
-            android:textColor="@color/text_secondary" />
-    </LinearLayout>
+        android:padding="12dp"
+        android:background="@android:drawable/edit_text"
+        android:textSize="16sp"
+        android:textColor="@color/text_dark"
+        android:text="Tap to select date and time" />
 </LinearLayout>
 

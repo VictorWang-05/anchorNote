@@ -240,14 +240,27 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Create Template FAB (Circular button in bottom right corner) -->
+    <!-- Filter FAB (Circular button in bottom right corner) -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/createTemplateFab"
+        android:id="@+id/filterFab"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
         android:src="@android:drawable/ic_menu_sort_by_size"
+        android:contentDescription="Filter notes"
+        app:tint="@color/white"
+        app:backgroundTint="@color/orange_primary" />
+    
+    <!-- Template FAB (Circular button above filter FAB) -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/templateFab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginBottom="80dp"
+        android:layout_marginEnd="16dp"
+        android:src="@android:drawable/ic_menu_view"
         android:contentDescription="@string/create_template"
         app:tint="@color/white"
         app:backgroundTint="@color/orange_primary" />

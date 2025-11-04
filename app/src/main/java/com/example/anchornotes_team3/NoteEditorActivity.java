@@ -1,10 +1,12 @@
 package com.example.anchornotes_team3;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -19,16 +21,21 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.anchornotes_team3.adapter.AttachmentsAdapter;
+import com.example.anchornotes_team3.geofence.GeofenceManager;
 import com.example.anchornotes_team3.model.Attachment;
 import com.example.anchornotes_team3.model.Geofence;
 import com.example.anchornotes_team3.model.Note;
 import com.example.anchornotes_team3.model.Tag;
 import com.example.anchornotes_team3.repository.NoteRepository;
 import com.example.anchornotes_team3.util.FormattingTextWatcher;
+import com.example.anchornotes_team3.util.GeocoderHelper;
+import com.example.anchornotes_team3.util.MarkdownConverter;
 import com.example.anchornotes_team3.util.MediaHelper;
 import com.example.anchornotes_team3.util.TextSpanUtils;
 import com.google.android.material.appbar.MaterialToolbar;
@@ -79,9 +86,12 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private NoteRepository repository;
     private AttachmentsAdapter attachmentsAdapter;
     private MediaHelper mediaHelper;
+    private GeofenceManager geofenceManager;
+    private GeocoderHelper geocoderHelper;
     private MenuItem pinMenuItem;
     private List<Tag> availableTags = new ArrayList<>();
     private boolean isNewNote = true;
+    private boolean isTemplateMode = false; // Flag to indicate if creating/editing a template
     
     // Formatting toggle support
     private FormattingTextWatcher formattingTextWatcher;
@@ -89,11 +99,27 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     // Track pending uploads
     private int pendingUploads = 0;
     private boolean shouldFinishAfterUploads = false;
+
+    // Audio playback
+    private MediaPlayer mediaPlayer;
+    private Attachment currentlyPlayingAttachment;
+
+    // Track attachments to delete from backend
+    private List<Attachment> attachmentsToDelete = new ArrayList<>();
+    
+    // Pending geofence data (for permission request)
+    private Geofence pendingGeofence = null;
     
     // State persistence keys
     private static final String STATE_PHOTO_URI = "photo_uri";
     private static final String STATE_IS_NEW_NOTE = "is_new_note";
     private static final String STATE_NOTE_ID = "note_id";
+    
+    // Permission request codes
+    private static final int REQUEST_CODE_LOCATION_PERMISSION = 101;
+    
+    // Activity request codes
+    private static final int REQUEST_CODE_MAP_LOCATION_PICKER = 201;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -103,6 +129,8 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         // Initialize repository and helpers
         repository = NoteRepository.getInstance(this);
         mediaHelper = new MediaHelper(this);
+        geofenceManager = new GeofenceManager(this);
+        geocoderHelper = new GeocoderHelper(this);
         
         // Restore photo URI if activity was recreated (e.g., after camera app)
         if (savedInstanceState != null) {
@@ -135,7 +163,19 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
 
         // Load or create note
         String noteId = getIntent().getStringExtra("note_id");
-        if (noteId != null && !noteId.isEmpty()) {
+        boolean templateMode = getIntent().getBooleanExtra("is_template_mode", false);
+        
+        if (templateMode) {
+            // Template creation mode
+            isTemplateMode = true;
+            isNewNote = true;
+            currentNote = new Note();
+            loadNoteIntoUI();
+            // Update toolbar title
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setTitle(R.string.create_template);
+            }
+        } else if (noteId != null && !noteId.isEmpty()) {
             isNewNote = false;
             loadNoteFromBackend(noteId);
         } else {
@@ -346,16 +386,26 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
 
     private void loadNoteIntoUI() {
         if (currentNote == null) return;
-        
+
         etTitle.setText(currentNote.getTitle());
-        etBody.setText(currentNote.getText());
-        
+
+        // Convert Markdown to formatted text (Spanned) when loading
+        String noteText = currentNote.getText();
+        if (noteText != null && !noteText.isEmpty()) {
+            android.util.Log.d("NoteEditor", "📖 Loading markdown: " + noteText);
+            android.text.Spanned formattedText = MarkdownConverter.fromMarkdown(this, noteText);
+            etBody.setText(formattedText);
+            android.util.Log.d("NoteEditor", "✅ Loaded formatted text, length: " + formattedText.length());
+        } else {
+            etBody.setText("");
+        }
+
         // Update chips
         updateTagChips();
         updateLocationChip();
         updateReminderChip();
         updateAttachments();
-        
+
         // Update pin icon in menu
         updatePinIcon();
     }
@@ -387,17 +437,21 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private void updateLocationChip() {
         if (currentNote.hasGeofence()) {
             Geofence geofence = currentNote.getGeofence();
-            chipLocation.setText(geofence.getAddress() != null ? geofence.getAddress() : "Location Set");
+            String displayText = geofence.getAddress() != null && !geofence.getAddress().isEmpty() 
+                ? geofence.getAddress() 
+                : "Location (" + geofence.getRadius() + "m)";
+            chipLocation.setText(displayText);
             chipLocation.setCloseIconVisible(true);
             chipLocation.setOnCloseIconClickListener(v -> clearLocation());
         } else {
-            chipLocation.setText(R.string.chip_no_location);
+            chipLocation.setText(R.string.chip_add_location);
             chipLocation.setCloseIconVisible(false);
         }
     }
 
     private void updateReminderChip() {
         if (currentNote.hasTimeReminder()) {
+            // Show time reminder info
             Instant reminderTime = currentNote.getReminderTime();
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM d, h:mm a")
                     .withZone(ZoneId.systemDefault());
@@ -423,6 +477,36 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private void showAddTagDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_tag, null);
         TextInputEditText etTag = dialogView.findViewById(R.id.et_tag);
+        com.google.android.material.textfield.TextInputLayout etTagLayout = dialogView.findViewById(R.id.et_tag_layout);
+        
+        // Selected color state (default)
+        final String[] selectedColor = new String[]{"#FF8C42"};
+        try {
+            etTagLayout.setStartIconTintList(android.content.res.ColorStateList.valueOf(
+                android.graphics.Color.parseColor(selectedColor[0])));
+        } catch (Exception ignored) {}
+        
+        // Color picker on start icon (visual chips)
+        etTagLayout.setStartIconOnClickListener(v -> {
+            com.example.anchornotes_team3.util.ColorPickerDialog.show(NoteEditorActivity.this, selectedColor[0], hex -> {
+                selectedColor[0] = hex;
+                try {
+                    etTagLayout.setStartIconTintList(android.content.res.ColorStateList.valueOf(
+                        android.graphics.Color.parseColor(hex)));
+                } catch (Exception ignored4) {}
+            });
+        });
+        
+        // Create tag on plus icon
+        etTagLayout.setEndIconOnClickListener(v -> {
+            String tagName = etTag.getText().toString().trim();
+            if (!tagName.isEmpty()) {
+                createAndAddTag(tagName, selectedColor[0]);
+                etTag.setText("");
+            } else {
+                android.widget.Toast.makeText(NoteEditorActivity.this, "Please enter a tag name", android.widget.Toast.LENGTH_SHORT).show();
+            }
+        });
         
         // Show existing tags as suggestions
         String[] tagNames = availableTags.stream()
@@ -437,21 +521,19 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                     currentNote.addTag(selectedTag);
                     updateTagChips();
                 })
-                .setPositiveButton("Create New", (d, which) -> {
-                    String tagName = etTag.getText().toString().trim();
-                    if (!tagName.isEmpty()) {
-                        createAndAddTag(tagName);
-                    }
-                })
+                .setPositiveButton("Done", null)
                 .setNegativeButton(R.string.btn_cancel, null)
                 .create();
         dialog.show();
     }
     
     private void createAndAddTag(String tagName) {
-        // Create tag with random color (or default)
-        String defaultColor = "#FF6B6B";
-        repository.createTag(tagName, defaultColor, new retrofit2.Callback<Tag>() {
+        createAndAddTag(tagName, "#FF6B6B");
+    }
+
+    private void createAndAddTag(String tagName, String color) {
+        String chosen = color != null ? color : "#FF6B6B";
+        repository.createTag(tagName, chosen, new retrofit2.Callback<Tag>() {
             @Override
             public void onResponse(@NonNull retrofit2.Call<Tag> call, @NonNull retrofit2.Response<Tag> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -471,72 +553,40 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         });
     }
 
+    /**
+     * Launch Google Maps picker to select location (geofence)
+     */
     private void showAddLocationDialog() {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_location, null);
-        TextInputEditText etAddress = dialogView.findViewById(R.id.et_address);
-        MaterialButton btnDetectAuto = dialogView.findViewById(R.id.btn_detect_auto);
+        Intent intent = new Intent(this, MapLocationPickerActivity.class);
         
-        btnDetectAuto.setOnClickListener(v -> {
-            if (mediaHelper.hasLocationPermission()) {
-                // TODO: Get current location and geocode to address
-                etAddress.setText("Current Location (detected)");
-            } else {
-                mediaHelper.requestLocationPermission();
-            }
-        });
+        // If geofence already exists, pass it to the map picker
+        if (currentNote.hasGeofence()) {
+            Geofence geofence = currentNote.getGeofence();
+            intent.putExtra(MapLocationPickerActivity.EXTRA_LATITUDE, geofence.getLatitude());
+            intent.putExtra(MapLocationPickerActivity.EXTRA_LONGITUDE, geofence.getLongitude());
+            intent.putExtra(MapLocationPickerActivity.EXTRA_RADIUS, geofence.getRadius());
+            intent.putExtra(MapLocationPickerActivity.EXTRA_ADDRESS, geofence.getAddress());
+        }
         
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setView(dialogView)
-                .setPositiveButton(R.string.btn_ok, (d, which) -> {
-                    String address = etAddress.getText().toString().trim();
-                    if (!address.isEmpty()) {
-                        // TODO: Geocode address to lat/long using Geocoder or backend API
-                        // For now, use dummy coordinates
-                        double lat = 34.0522; // Los Angeles example
-                        double lng = -118.2437;
-                        int radius = 100; // meters
-                        
-                        Geofence geofence = new Geofence(lat, lng, radius, address);
-                        currentNote.setGeofence(geofence);
-                        updateLocationChip();
-                    }
-                })
-                .setNegativeButton(R.string.btn_cancel, null)
-                .create();
-        dialog.show();
+        startActivityForResult(intent, REQUEST_CODE_MAP_LOCATION_PICKER);
     }
 
+    /**
+     * Show dialog to add/edit time reminder
+     */
     private void showAddReminderDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_reminder, null);
-        TabLayout tabReminderType = dialogView.findViewById(R.id.tab_reminder_type);
-        LinearLayout layoutTimeReminder = dialogView.findViewById(R.id.layout_time_reminder);
-        LinearLayout layoutGeofenceReminder = dialogView.findViewById(R.id.layout_geofence_reminder);
         TextView tvSelectedDatetime = dialogView.findViewById(R.id.tv_selected_datetime);
-        TextInputEditText etGeoAddress = dialogView.findViewById(R.id.et_geo_address);
-        Slider sliderRadius = dialogView.findViewById(R.id.slider_radius);
-        TextView tvRadiusValue = dialogView.findViewById(R.id.tv_radius_value);
         
         final Calendar calendar = Calendar.getInstance();
         
-        // Tab selection listener
-        tabReminderType.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                if (tab.getPosition() == 0) {
-                    layoutTimeReminder.setVisibility(View.VISIBLE);
-                    layoutGeofenceReminder.setVisibility(View.GONE);
-                } else {
-                    layoutTimeReminder.setVisibility(View.GONE);
-                    layoutGeofenceReminder.setVisibility(View.VISIBLE);
-                }
-            }
-
-            @Override
-            public void onTabUnselected(TabLayout.Tab tab) {}
-
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {}
-        });
+        // Pre-fill if time reminder exists
+        if (currentNote.hasTimeReminder()) {
+            Instant reminderTime = currentNote.getReminderTime();
+            calendar.setTimeInMillis(reminderTime.toEpochMilli());
+            SimpleDateFormat sdf = new SimpleDateFormat("MMM d, yyyy h:mm a", Locale.getDefault());
+            tvSelectedDatetime.setText(sdf.format(calendar.getTime()));
+        }
         
         // Date/Time picker for time reminder
         tvSelectedDatetime.setOnClickListener(v -> {
@@ -558,78 +608,211 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             datePickerDialog.show();
         });
         
-        // Radius slider listener
-        sliderRadius.addOnChangeListener((slider, value, fromUser) -> 
-            tvRadiusValue.setText((int)value + " meters")
-        );
-        
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setView(dialogView)
                 .setPositiveButton(R.string.btn_ok, (d, which) -> {
-                    int selectedTab = tabReminderType.getSelectedTabPosition();
-                    
-                    if (selectedTab == 0) {
-                        // Time reminder
-                        Instant reminderTime = Instant.ofEpochMilli(calendar.getTimeInMillis());
-                        currentNote.setReminderTime(reminderTime);
-                    } else {
-                        // Geofence reminder (handled by location dialog)
-                        Toast.makeText(this, "Please use Location button to set geofence", Toast.LENGTH_SHORT).show();
-                    }
-                    updateReminderChip();
+                    // Save time reminder
+                    Instant reminderTime = Instant.ofEpochMilli(calendar.getTimeInMillis());
+                    saveTimeReminder(reminderTime);
                 })
                 .setNegativeButton(R.string.btn_cancel, null)
                 .create();
         dialog.show();
     }
+    
+    /**
+     * Save time reminder
+     */
+    private void saveTimeReminder(Instant reminderTime) {
+        currentNote.setReminderTime(reminderTime);
+        updateReminderChip();
+    }
+    
+    /**
+     * Geocode address and save geofence
+     */
+    private void saveGeofence(String address, int radiusMeters) {
+        // Show progress
+        Toast.makeText(this, R.string.geocoding_in_progress, Toast.LENGTH_SHORT).show();
+        
+        // Geocode address to lat/lng
+        geocoderHelper.geocodeAddress(address, new GeocoderHelper.GeocodeCallback() {
+            @Override
+            public void onSuccess(double latitude, double longitude, String formattedAddress) {
+                // Create geofence object
+                Geofence geofence = new Geofence(latitude, longitude, radiusMeters, formattedAddress);
+                
+                // Check if note exists on backend first
+                if (currentNote.getId() == null || currentNote.getId().isEmpty()) {
+                    // Note doesn't exist yet - save locally and will be sent to backend when note is saved
+                    currentNote.setGeofence(geofence);
+                    updateLocationChip();
+                    Toast.makeText(NoteEditorActivity.this, "Location set (will be saved with note)", Toast.LENGTH_SHORT).show();
+                } else {
+                    // Note exists - save location to backend and register with device
+                    saveGeofenceToBackend(geofence);
+                }
+            }
+            
+            @Override
+            public void onError(String error) {
+                Toast.makeText(NoteEditorActivity.this, error, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+    
+    /**
+     * Save geofence to backend and register with device
+     */
+    private void saveGeofenceToBackend(Geofence geofence) {
+        // Check location permission first
+        boolean hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) 
+                == PackageManager.PERMISSION_GRANTED;
+        boolean locationEnabled = geofenceManager.isLocationEnabled();
+        
+        android.util.Log.d("NoteEditor", "Geofence check - Permission: " + hasPermission + ", Location enabled: " + locationEnabled);
+        
+        if (!hasPermission) {
+            // Store pending geofence and request permission
+            pendingGeofence = geofence;
+            ActivityCompat.requestPermissions(this,
+                new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                REQUEST_CODE_LOCATION_PERMISSION);
+            return;
+        }
+        
+        // Check if location services are enabled
+        if (!locationEnabled) {
+            Toast.makeText(this, 
+                "Location services are disabled. Please enable location in Settings → Location.", 
+                Toast.LENGTH_LONG).show();
+            // Still save to backend - will work when location is enabled
+        }
+        
+        // Save to backend
+        repository.setGeofence(currentNote.getId(), geofence, new NoteRepository.NoteCallback() {
+            @Override
+            public void onSuccess(Note note) {
+                currentNote = note;
+                updateLocationChip();
+                
+                // Register geofence with device
+                geofenceManager.addGeofence(
+                    currentNote.getId(),
+                    geofence.getLatitude(),
+                    geofence.getLongitude(),
+                    geofence.getRadius().floatValue(),
+                    new GeofenceManager.GeofenceCallback() {
+                        @Override
+                        public void onSuccess(String message) {
+                            Toast.makeText(NoteEditorActivity.this, 
+                                R.string.location_saved, Toast.LENGTH_SHORT).show();
+                        }
+                        
+                        @Override
+                        public void onError(String error) {
+                            // Geofence is saved to backend, but device registration failed
+                            // This is common on emulators - geofence will work on real devices
+                            android.util.Log.w("NoteEditor", "Geofence saved to backend but device registration failed: " + error);
+                            
+                            String message;
+                            if (error.contains("Location services are disabled")) {
+                                message = "Geofence saved. Enable location services in Settings for it to work.";
+                            } else if (error.contains("not available")) {
+                                message = "Geofence saved. Will work on real devices or when location is enabled.";
+                            } else {
+                                message = "Geofence saved to backend. Device registration failed: " + error;
+                            }
+                            
+                            Toast.makeText(NoteEditorActivity.this, message, Toast.LENGTH_LONG).show();
+                        }
+                    }
+                );
+            }
+            
+            @Override
+            public void onError(String error) {
+                Toast.makeText(NoteEditorActivity.this, 
+                    "Failed to save geofence: " + error, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
 
+    /**
+     * Clear location (geofence) only
+     */
     private void clearLocation() {
-        if (currentNote.getId() != null && (currentNote.hasGeofence() || currentNote.hasTimeReminder())) {
-            // Clear ALL reminders (including location) from backend if note exists
-            repository.clearReminders(currentNote.getId(), new NoteRepository.SimpleCallback() {
+        String noteId = currentNote.getId();
+        boolean hasGeofence = currentNote.hasGeofence();
+        
+        if (noteId != null && hasGeofence) {
+            // Note exists on backend - clear geofence
+            repository.clearReminders(noteId, new NoteRepository.SimpleCallback() {
                 @Override
                 public void onSuccess() {
                     currentNote.clearGeofence();
-                    currentNote.clearTimeReminder();
                     updateLocationChip();
-                    updateReminderChip();
-                    Toast.makeText(NoteEditorActivity.this, "Location and reminders cleared", Toast.LENGTH_SHORT).show();
+                    
+                    // Unregister geofence from device
+                    geofenceManager.removeGeofence(noteId, new GeofenceManager.GeofenceCallback() {
+                        @Override
+                        public void onSuccess(String message) {
+                            Toast.makeText(NoteEditorActivity.this, 
+                                R.string.location_removed, Toast.LENGTH_SHORT).show();
+                        }
+                        
+                        @Override
+                        public void onError(String error) {
+                            Toast.makeText(NoteEditorActivity.this, 
+                                "Location cleared but device unregister failed: " + error, 
+                                Toast.LENGTH_LONG).show();
+                        }
+                    });
                 }
 
                 @Override
                 public void onError(String error) {
-                    Toast.makeText(NoteEditorActivity.this, "Failed to clear location: " + error, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(NoteEditorActivity.this, 
+                        "Failed to clear location: " + error, Toast.LENGTH_SHORT).show();
                 }
             });
         } else {
+            // Note doesn't exist yet or no geofence - clear locally
             currentNote.clearGeofence();
             updateLocationChip();
+            Toast.makeText(this, R.string.location_removed, Toast.LENGTH_SHORT).show();
         }
     }
 
+    /**
+     * Clear time reminder only
+     */
     private void clearReminder() {
-        if (currentNote.getId() != null && (currentNote.hasTimeReminder() || currentNote.getGeofence() != null)) {
-            // Clear ALL reminders from backend if note exists
-            repository.clearReminders(currentNote.getId(), new NoteRepository.SimpleCallback() {
+        String noteId = currentNote.getId();
+        boolean hasTimeReminder = currentNote.hasTimeReminder();
+        
+        if (noteId != null && hasTimeReminder) {
+            // Note exists on backend - clear time reminder
+            repository.clearReminders(noteId, new NoteRepository.SimpleCallback() {
                 @Override
                 public void onSuccess() {
                     currentNote.clearTimeReminder();
-                    currentNote.setGeofence(null);
                     updateReminderChip();
-                    updateLocationChip();
-                    Toast.makeText(NoteEditorActivity.this, "Reminders cleared", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(NoteEditorActivity.this, 
+                        R.string.reminder_cleared, Toast.LENGTH_SHORT).show();
                 }
 
                 @Override
                 public void onError(String error) {
-                    Toast.makeText(NoteEditorActivity.this, "Failed to clear reminders: " + error, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(NoteEditorActivity.this, 
+                        "Failed to clear reminder: " + error, Toast.LENGTH_SHORT).show();
                 }
             });
         } else {
+            // Note doesn't exist yet or no time reminder - clear locally
             currentNote.clearTimeReminder();
-            currentNote.setGeofence(null);
             updateReminderChip();
-            updateLocationChip();
+            Toast.makeText(this, R.string.reminder_cleared, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -661,9 +844,87 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             mediaHelper.requestAudioPermission();
             return;
         }
-        
-        // TODO: Implement audio recording
-        Toast.makeText(this, "Audio recording - to be implemented", Toast.LENGTH_SHORT).show();
+
+        // Show audio recording dialog
+        showAudioRecordingDialog();
+    }
+
+    private void showAudioRecordingDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_audio_recording, null);
+
+        TextView tvRecordingStatus = dialogView.findViewById(R.id.tv_recording_status);
+        MaterialButton btnStartStop = dialogView.findViewById(R.id.btn_start_stop);
+        MaterialButton btnCancel = dialogView.findViewById(R.id.btn_cancel);
+
+        final boolean[] isRecording = {false};
+        final android.os.Handler handler = new android.os.Handler();
+        final Runnable[] updateTimer = new Runnable[1];
+
+        updateTimer[0] = new Runnable() {
+            @Override
+            public void run() {
+                if (mediaHelper.isRecording()) {
+                    int duration = mediaHelper.getRecordingDuration();
+                    tvRecordingStatus.setText(String.format(Locale.getDefault(),
+                            "Recording... %d:%02d", duration / 60, duration % 60));
+                    handler.postDelayed(this, 1000);
+                }
+            }
+        };
+
+        AlertDialog dialog = builder.setView(dialogView).create();
+
+        btnStartStop.setOnClickListener(v -> {
+            if (!isRecording[0]) {
+                // Start recording
+                try {
+                    mediaHelper.startAudioRecording();
+                    isRecording[0] = true;
+                    btnStartStop.setText("Stop Recording");
+                    btnStartStop.setIcon(getDrawable(android.R.drawable.ic_media_pause));
+                    handler.post(updateTimer[0]);
+                } catch (IOException e) {
+                    Toast.makeText(this, "Failed to start recording: " + e.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                // Stop recording
+                Uri audioUri = mediaHelper.stopAudioRecording();
+                int duration = mediaHelper.getRecordingDuration();
+                isRecording[0] = false;
+                handler.removeCallbacks(updateTimer[0]);
+
+                if (audioUri != null) {
+                    // Add audio attachment to note
+                    Attachment attachment = new Attachment(Attachment.AttachmentType.AUDIO, audioUri);
+                    attachment.setDurationSec(duration);
+                    currentNote.addAttachment(attachment);
+                    updateAttachments();
+                    Toast.makeText(this, "Audio recorded successfully", Toast.LENGTH_SHORT).show();
+                    dialog.dismiss();
+                } else {
+                    Toast.makeText(this, "Failed to save audio recording", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        btnCancel.setOnClickListener(v -> {
+            if (isRecording[0]) {
+                mediaHelper.cancelAudioRecording();
+                handler.removeCallbacks(updateTimer[0]);
+            }
+            dialog.dismiss();
+        });
+
+        dialog.setOnDismissListener(d -> {
+            if (isRecording[0]) {
+                mediaHelper.cancelAudioRecording();
+                handler.removeCallbacks(updateTimer[0]);
+            }
+        });
+
+        dialog.show();
     }
 
     @Override
@@ -691,6 +952,29 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                     android.util.Log.d("NoteEditor", "📷 Photo attachment added! Total attachments: " + currentNote.getAttachments().size());
                     updateAttachments();
                 }
+            } else if (requestCode == REQUEST_CODE_MAP_LOCATION_PICKER && data != null) {
+                // Handle location selected from map
+                double latitude = data.getDoubleExtra(MapLocationPickerActivity.EXTRA_LATITUDE, 0);
+                double longitude = data.getDoubleExtra(MapLocationPickerActivity.EXTRA_LONGITUDE, 0);
+                int radius = data.getIntExtra(MapLocationPickerActivity.EXTRA_RADIUS, 200);
+                String address = data.getStringExtra(MapLocationPickerActivity.EXTRA_ADDRESS);
+                
+                android.util.Log.d("NoteEditor", "📍 Map location selected: " + address);
+                android.util.Log.d("NoteEditor", "📍 Coordinates: " + latitude + ", " + longitude + " (radius: " + radius + "m)");
+                
+                // Create geofence with selected location
+                Geofence geofence = new Geofence(latitude, longitude, radius, address);
+                
+                // Check if note exists on backend
+                if (currentNote.getId() == null || currentNote.getId().isEmpty()) {
+                    // Note doesn't exist yet - save locally
+                    currentNote.setGeofence(geofence);
+                    updateLocationChip();
+                    Toast.makeText(this, "Location set (will be saved with note)", Toast.LENGTH_SHORT).show();
+                } else {
+                    // Note exists - save to backend
+                    saveGeofenceToBackend(geofence);
+                }
             }
         }
     }
@@ -698,15 +982,36 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        
+
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             if (requestCode == MediaHelper.REQUEST_CAMERA_PERMISSION) {
                 handleAddPhoto();
             } else if (requestCode == MediaHelper.REQUEST_AUDIO_PERMISSION) {
                 handleAddAudio();
+            } else if (requestCode == MediaHelper.REQUEST_LOCATION_PERMISSION) {
+                Toast.makeText(this, "Location permission granted", Toast.LENGTH_SHORT).show();
+            } else if (requestCode == REQUEST_CODE_LOCATION_PERMISSION) {
+                // Location permission granted - retry pending geofence save
+                if (pendingGeofence != null) {
+                    saveGeofenceToBackend(pendingGeofence);
+                    pendingGeofence = null;
+                }
             }
         } else {
-            Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show();
+            if (requestCode == REQUEST_CODE_LOCATION_PERMISSION) {
+                Toast.makeText(this, R.string.permission_location_required, Toast.LENGTH_LONG).show();
+                pendingGeofence = null; // Clear pending geofence
+            } else {
+                String permissionType = "Permission";
+                if (requestCode == MediaHelper.REQUEST_CAMERA_PERMISSION) {
+                    permissionType = "Camera permission";
+                } else if (requestCode == MediaHelper.REQUEST_AUDIO_PERMISSION) {
+                    permissionType = "Microphone permission";
+                } else if (requestCode == MediaHelper.REQUEST_LOCATION_PERMISSION) {
+                    permissionType = "Location permission";
+                }
+                Toast.makeText(this, permissionType + " denied", Toast.LENGTH_SHORT).show();
+            }
         }
     }
     
@@ -758,13 +1063,49 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
 
     private void saveNote() {
         String title = etTitle.getText().toString().trim();
-        String text = etBody.getText().toString();
-        
+
+        // Convert formatted text (Spanned) to Markdown when saving
+        android.text.Editable bodyEditable = etBody.getText();
+        android.util.Log.d("NoteEditor", "💾 Converting to markdown, text length: " + bodyEditable.length());
+        String markdown = MarkdownConverter.toMarkdown(bodyEditable);
+        android.util.Log.d("NoteEditor", "💾 Generated markdown: " + markdown);
+
         currentNote.setTitle(title);
-        currentNote.setText(text);
-        
+        currentNote.setText(markdown);
+
         android.util.Log.d("NoteEditor", "🚀 Attempting to save note: " + title);
         android.util.Log.d("NoteEditor", "📝 Is new note: " + isNewNote);
+        android.util.Log.d("NoteEditor", "📋 Is template mode: " + isTemplateMode);
+        
+        if (isTemplateMode) {
+            // Create template instead of note
+            android.util.Log.d("NoteEditor", "📤 Calling createTemplate API...");
+            
+            // Convert Note to Template model
+            com.example.anchornotes_team3.model.Template template = new com.example.anchornotes_team3.model.Template();
+            template.setName(title); // Use title as template name
+            template.setText(markdown);
+            template.setPinned(currentNote.isPinned());
+            template.setTags(currentNote.getTags() != null ? currentNote.getTags() : new ArrayList<>());
+            template.setGeofence(currentNote.getGeofence());
+            // Note: Attachments are not copied to templates - templates are blueprints for content
+            
+            repository.createTemplate(template, new NoteRepository.TemplateCallback() {
+                @Override
+                public void onSuccess(com.example.anchornotes_team3.model.Template createdTemplate) {
+                    android.util.Log.d("NoteEditor", "✅ Template saved successfully! ID: " + createdTemplate.getId());
+                    Toast.makeText(NoteEditorActivity.this, "Template saved successfully", Toast.LENGTH_SHORT).show();
+                    finish();
+                }
+                
+                @Override
+                public void onError(String error) {
+                    android.util.Log.e("NoteEditor", "❌ Failed to save template: " + error);
+                    Toast.makeText(NoteEditorActivity.this, "Failed to save template: " + error, Toast.LENGTH_LONG).show();
+                }
+            });
+            return;
+        }
         
         if (isNewNote) {
             // Create new note
@@ -812,13 +1153,28 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             repository.updateNote(currentNote, new NoteRepository.NoteCallback() {
                 @Override
                 public void onSuccess(Note note) {
+                    android.util.Log.d("NoteEditor", "✅ Note updated successfully! ID: " + note.getId());
+
+                    // Preserve local attachments before replacing currentNote
+                    List<Attachment> localAttachments = new ArrayList<>(currentNote.getAttachments());
+                    android.util.Log.d("NoteEditor", "💾 Preserving " + localAttachments.size() + " local attachments");
+
                     currentNote = note;
-                    
+
+                    // Restore local attachments that need to be uploaded
+                    for (Attachment attachment : localAttachments) {
+                        // Only add back attachments that haven't been uploaded yet
+                        if (!attachment.isUploaded()) {
+                            currentNote.addAttachment(attachment);
+                        }
+                    }
+                    android.util.Log.d("NoteEditor", "💾 Restored attachments. Total: " + currentNote.getAttachments().size());
+
                     // After updating note, save reminders and attachments
                     int uploads = saveRemindersAndAttachments();
-                    
+
                     Toast.makeText(NoteEditorActivity.this, R.string.note_saved, Toast.LENGTH_SHORT).show();
-                    
+
                     // Only finish if no uploads are pending
                     if (uploads == 0) {
                         finish();
@@ -842,38 +1198,88 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
      */
     private int saveRemindersAndAttachments() {
         if (currentNote.getId() == null) return 0;
-        
+
         android.util.Log.d("NoteEditor", "💾 saveRemindersAndAttachments called for note " + currentNote.getId());
         android.util.Log.d("NoteEditor", "💾 Total attachments: " + currentNote.getAttachments().size());
-        
+        android.util.Log.d("NoteEditor", "🗑️ Attachments to delete: " + attachmentsToDelete.size());
+
         pendingUploads = 0;
+
+        // Delete attachments from backend that were removed by user
+        for (Attachment attachment : attachmentsToDelete) {
+            android.util.Log.d("NoteEditor", "🗑️ Deleting attachment from backend: " + attachment.getId() + " (type: " + attachment.getType() + ")");
+
+            if (attachment.getType() == Attachment.AttachmentType.PHOTO) {
+                repository.deletePhotoAttachment(currentNote.getId(), attachment.getId(), new NoteRepository.SimpleCallback() {
+                    @Override
+                    public void onSuccess() {
+                        android.util.Log.d("NoteEditor", "✅ Photo attachment deleted from backend: " + attachment.getId());
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        android.util.Log.e("NoteEditor", "❌ Failed to delete photo attachment: " + error);
+                        // Don't show error to user - it's non-critical
+                    }
+                });
+            } else if (attachment.getType() == Attachment.AttachmentType.AUDIO) {
+                repository.deleteAudioAttachment(currentNote.getId(), attachment.getId(), new NoteRepository.SimpleCallback() {
+                    @Override
+                    public void onSuccess() {
+                        android.util.Log.d("NoteEditor", "✅ Audio attachment deleted from backend: " + attachment.getId());
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        android.util.Log.e("NoteEditor", "❌ Failed to delete audio attachment: " + error);
+                        // Don't show error to user - it's non-critical
+                    }
+                });
+            }
+        }
+
+        // Clear the deletion list after processing
+        attachmentsToDelete.clear();
         
         // Save time reminder if set
         if (currentNote.hasTimeReminder()) {
+            pendingUploads++;
+            android.util.Log.d("NoteEditor", "⏰ Saving time reminder...");
             repository.setTimeReminder(currentNote.getId(), currentNote.getReminderTime(), new NoteRepository.NoteCallback() {
                 @Override
                 public void onSuccess(Note note) {
-                    // Reminder saved
+                    android.util.Log.d("NoteEditor", "✅ Time reminder saved successfully");
+                    currentNote.setReminderTime(note.getReminderTime());
+                    onUploadComplete();
                 }
 
                 @Override
                 public void onError(String error) {
+                    android.util.Log.e("NoteEditor", "❌ Failed to set reminder: " + error);
                     Toast.makeText(NoteEditorActivity.this, "Failed to set reminder: " + error, Toast.LENGTH_SHORT).show();
+                    onUploadComplete();
                 }
             });
         }
         
         // Save geofence if set
         if (currentNote.hasGeofence()) {
+            pendingUploads++;
+            android.util.Log.d("NoteEditor", "📍 Saving geofence...");
             repository.setGeofence(currentNote.getId(), currentNote.getGeofence(), new NoteRepository.NoteCallback() {
                 @Override
                 public void onSuccess(Note note) {
-                    // Geofence saved
+                    android.util.Log.d("NoteEditor", "✅ Geofence saved successfully");
+                    currentNote.setGeofence(note.getGeofence());
+                    updateLocationChip();
+                    onUploadComplete();
                 }
 
                 @Override
                 public void onError(String error) {
+                    android.util.Log.e("NoteEditor", "❌ Failed to set geofence: " + error);
                     Toast.makeText(NoteEditorActivity.this, "Failed to set geofence: " + error, Toast.LENGTH_SHORT).show();
+                    onUploadComplete();
                 }
             });
         }
@@ -946,7 +1352,41 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
 
     private void togglePin() {
         if (currentNote == null) return;
-        currentNote.setPinned(!currentNote.isPinned());
+        
+        boolean newPinStatus = !currentNote.isPinned();
+        
+        // If note doesn't exist yet (new note), just update local state
+        // The pin status will be saved when the note is saved
+        if (isNewNote || currentNote.getId() == null || currentNote.getId().isEmpty()) {
+            currentNote.setPinned(newPinStatus);
+            updatePinIcon();
+            String message = newPinStatus ? "Note will be pinned when saved" : "Note will be unpinned when saved";
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // For existing notes, immediately update on backend
+        repository.pinNote(currentNote.getId(), newPinStatus, new NoteRepository.NoteCallback() {
+            @Override
+            public void onSuccess(Note note) {
+                // Update current note with the response
+                currentNote.setPinned(note.isPinned());
+                updatePinIcon();
+                String message = note.isPinned() ? "Note pinned" : "Note unpinned";
+                Toast.makeText(NoteEditorActivity.this, message, Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onError(String error) {
+                // Revert the change on error
+                currentNote.setPinned(!newPinStatus);
+                updatePinIcon();
+                Toast.makeText(NoteEditorActivity.this, "Failed to " + (newPinStatus ? "pin" : "unpin") + " note: " + error, Toast.LENGTH_SHORT).show();
+            }
+        });
+        
+        // Optimistically update UI
+        currentNote.setPinned(newPinStatus);
         updatePinIcon();
     }
 
@@ -974,20 +1414,111 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     // AttachmentsAdapter.OnAttachmentActionListener implementation
     @Override
     public void onRemoveAttachment(Attachment attachment) {
+        android.util.Log.d("NoteEditor", "🗑️ Removing attachment: " + attachment.getId() + ", uploaded: " + attachment.isUploaded());
+
+        // Remove from current note
         currentNote.removeAttachment(attachment);
+
+        // If this attachment was uploaded to backend, track it for deletion
+        if (attachment.getId() != null && !attachment.getId().isEmpty() && attachment.isUploaded()) {
+            android.util.Log.d("NoteEditor", "📝 Tracking attachment for backend deletion: " + attachment.getId());
+            attachmentsToDelete.add(attachment);
+        }
+
         updateAttachments();
     }
 
     @Override
     public void onPlayAudio(Attachment attachment) {
-        // TODO: Implement audio playback
-        Toast.makeText(this, "Playing audio...", Toast.LENGTH_SHORT).show();
+        try {
+            // Stop any currently playing audio
+            stopAudioPlayback();
+
+            // Create new MediaPlayer
+            mediaPlayer = new MediaPlayer();
+            currentlyPlayingAttachment = attachment;
+
+            // Set data source (URI for local files, URL for remote files)
+            if (attachment.getUri() != null) {
+                android.util.Log.d("NoteEditor", "🎵 Playing audio from URI: " + attachment.getUri());
+                mediaPlayer.setDataSource(this, attachment.getUri());
+            } else if (attachment.getMediaUrl() != null) {
+                android.util.Log.d("NoteEditor", "🎵 Playing audio from URL: " + attachment.getMediaUrl());
+                mediaPlayer.setDataSource(attachment.getMediaUrl());
+            } else {
+                Toast.makeText(this, "No audio source available", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Prepare and start playback
+            mediaPlayer.setOnPreparedListener(mp -> {
+                mp.start();
+                android.util.Log.d("NoteEditor", "✅ Audio playback started");
+                Toast.makeText(this, "Playing audio", Toast.LENGTH_SHORT).show();
+            });
+
+            // Handle completion
+            mediaPlayer.setOnCompletionListener(mp -> {
+                android.util.Log.d("NoteEditor", "🎵 Audio playback completed");
+                stopAudioPlayback();
+                updateAttachments(); // Refresh to reset play button
+            });
+
+            // Handle errors
+            mediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                android.util.Log.e("NoteEditor", "❌ Audio playback error: what=" + what + ", extra=" + extra);
+                Toast.makeText(this, "Error playing audio", Toast.LENGTH_SHORT).show();
+                stopAudioPlayback();
+                return true;
+            });
+
+            mediaPlayer.prepareAsync();
+
+        } catch (Exception e) {
+            android.util.Log.e("NoteEditor", "❌ Failed to play audio", e);
+            Toast.makeText(this, "Failed to play audio: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            stopAudioPlayback();
+        }
     }
 
     @Override
     public void onPauseAudio(Attachment attachment) {
-        // TODO: Implement audio pause
-        Toast.makeText(this, "Paused audio", Toast.LENGTH_SHORT).show();
+        if (mediaPlayer != null && mediaPlayer.isPlaying()) {
+            mediaPlayer.pause();
+            android.util.Log.d("NoteEditor", "⏸️ Audio playback paused");
+            Toast.makeText(this, "Audio paused", Toast.LENGTH_SHORT).show();
+        } else {
+            stopAudioPlayback();
+        }
+    }
+
+    /**
+     * Stop and release audio playback resources
+     */
+    private void stopAudioPlayback() {
+        if (mediaPlayer != null) {
+            if (mediaPlayer.isPlaying()) {
+                mediaPlayer.stop();
+            }
+            mediaPlayer.release();
+            mediaPlayer = null;
+            currentlyPlayingAttachment = null;
+            android.util.Log.d("NoteEditor", "🛑 Audio playback stopped");
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Clean up media player
+        stopAudioPlayback();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Stop playback when activity is paused
+        stopAudioPlayback();
     }
 }
 

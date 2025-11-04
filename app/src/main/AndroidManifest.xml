@@ -22,9 +22,15 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Anchornotes_team3">
-        <!-- Main Activity - Homepage (First screen) -->
+        
+        <!-- Google Maps API Key -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="@string/google_maps_key" />
+        
+        <!-- Login-only Activity - First screen users see -->
         <activity
-            android:name=".MainActivity"
+            android:name=".LoginOnlyActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -38,9 +44,9 @@
             android:name=".LoginActivity"
             android:exported="false" />
 
-        <!-- Login-only Activity - For existing users -->
+        <!-- Main Activity - Homepage -->
         <activity
-            android:name=".LoginOnlyActivity"
+            android:name=".MainActivity"
             android:exported="false" />
 
         <!-- Account Activity -->
@@ -55,6 +61,36 @@
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Anchornotes_team3" />
 
+        <!-- Search Results Activity -->
+        <activity
+            android:name=".SearchResultsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Anchornotes_team3" />
+
+        <!-- Filter Options Activity -->
+        <activity
+            android:name=".FilterOptionsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Anchornotes_team3" />
+
+        <!-- Filter Results Activity -->
+        <activity
+            android:name=".FilterResultsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Anchornotes_team3" />
+
+        <!-- Template Activity -->
+        <activity
+            android:name=".TemplateActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Anchornotes_team3" />
+
+        <!-- Map Location Picker Activity -->
+        <activity
+            android:name=".MapLocationPickerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Anchornotes_team3" />
+
         <!-- FileProvider for sharing files with camera -->
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -65,6 +101,15 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Geofence BroadcastReceiver -->
+        <receiver
+            android:name=".geofence.GeofenceReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.anchornotes_team3.GEOFENCE_EVENT" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
