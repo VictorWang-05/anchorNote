@@ -474,8 +474,13 @@ public class NoteRepository {
      * Set time reminder
      */
     public void setTimeReminder(String noteId, Instant reminderTime, NoteCallback callback) {
-        String isoTime = reminderTime.toString();
-        TimeReminderRequest request = new TimeReminderRequest(isoTime);
+        // Convert Instant to LocalDateTime in system default timezone
+        java.time.ZoneId systemZone = java.time.ZoneId.systemDefault();
+        java.time.LocalDateTime localDateTime = java.time.LocalDateTime.ofInstant(reminderTime, systemZone);
+        String localDateTimeStr = localDateTime.toString(); // ISO format: 2024-11-04T10:30:00
+        String timeZoneStr = systemZone.getId(); // e.g., "America/Los_Angeles"
+        
+        TimeReminderRequest request = new TimeReminderRequest(localDateTimeStr, timeZoneStr);
         
         getApiService().setTimeReminder(noteId, request).enqueue(new Callback<NoteResponse>() {
             @Override

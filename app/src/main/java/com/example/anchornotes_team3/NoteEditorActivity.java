@@ -626,6 +626,29 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private void saveTimeReminder(Instant reminderTime) {
         currentNote.setReminderTime(reminderTime);
         updateReminderChip();
+        
+        // If note exists on backend, save reminder immediately
+        if (currentNote.getId() != null && !currentNote.getId().isEmpty()) {
+            android.util.Log.d("NoteEditor", "⏰ Saving time reminder to backend...");
+            repository.setTimeReminder(currentNote.getId(), reminderTime, new NoteRepository.NoteCallback() {
+                @Override
+                public void onSuccess(Note note) {
+                    currentNote.setReminderTime(note.getReminderTime());
+                    android.util.Log.d("NoteEditor", "✅ Time reminder saved successfully");
+                    Toast.makeText(NoteEditorActivity.this, "Reminder set", Toast.LENGTH_SHORT).show();
+                }
+                
+                @Override
+                public void onError(String error) {
+                    android.util.Log.e("NoteEditor", "❌ Failed to save time reminder: " + error);
+                    Toast.makeText(NoteEditorActivity.this, "Failed to set reminder: " + error, Toast.LENGTH_LONG).show();
+                }
+            });
+        } else {
+            // Note doesn't exist yet - reminder will be saved when note is created
+            android.util.Log.d("NoteEditor", "⏰ Time reminder set locally (will be saved with note)");
+            Toast.makeText(this, "Reminder set (will be saved with note)", Toast.LENGTH_SHORT).show();
+        }
     }
     
     /**
