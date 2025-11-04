@@ -10,6 +10,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.example.anchornotes_team3.R;
 import com.example.anchornotes_team3.model.Attachment;
 import com.google.android.material.button.MaterialButton;
@@ -98,8 +99,20 @@ public class AttachmentsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
         }
 
         public void bind(Attachment attachment) {
-            // Load image from URI
-            ivPhoto.setImageURI(attachment.getUri());
+            // Load image from URI (local) or mediaUrl (backend)
+            if (attachment.getUri() != null) {
+                // Local file - load from URI
+                Glide.with(itemView.getContext())
+                        .load(attachment.getUri())
+                        .centerCrop()
+                        .into(ivPhoto);
+            } else if (attachment.getMediaUrl() != null) {
+                // Backend file - load from URL
+                Glide.with(itemView.getContext())
+                        .load(attachment.getMediaUrl())
+                        .centerCrop()
+                        .into(ivPhoto);
+            }
             
             // Handle remove click
             btnRemove.setOnClickListener(v -> {

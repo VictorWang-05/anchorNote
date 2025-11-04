@@ -15,6 +15,7 @@
     <!-- Login/Register strings -->
     <string name="login_title">Welcome to AnchorNotes</string>
     <string name="login_subtitle">Sign in to continue</string>
+    <string name="welcome_back">Welcome Back</string>
     <string name="username_or_email">Username or Email</string>
     <string name="username">Username</string>
     <string name="email">Email</string>
@@ -25,9 +26,27 @@
     <string name="register_here">Register here</string>
     <string name="have_account">Already have an account?</string>
     <string name="login_here">Login here</string>
+    <string name="back_to_home">Back to home</string>
+
+    <!-- Account page strings -->
+    <string name="account_title">Account</string>
+    <string name="account_subtitle">Manage your account settings</string>
+    <string name="username_label">Username</string>
+    <string name="change_password">Password</string>
+    <string name="change_password_button">Change Password</string>
+    <string name="logout">Logout</string>
+    <string name="logout_confirmation">Are you sure you want to logout?</string>
 
     <!-- Note item strings -->
     <string name="add_tag">Add tag</string>
+    <string name="delete_note">Delete Note</string>
+    <string name="delete_note_confirmation">Are you sure you want to delete this note?</string>
+    <string name="note_options">Note Options</string>
+    <string name="cancel">Cancel</string>
+    <string name="pin_note">Pin note</string>
+    <string name="unpin_note">Unpin note</string>
+    <string name="pin_note_action">Pin note</string>
+    <string name="unpin_note_action">Unpin note</string>
 
     <!-- Empty state strings -->
     <string name="no_relevant_notes">No relevant notes at this time</string>

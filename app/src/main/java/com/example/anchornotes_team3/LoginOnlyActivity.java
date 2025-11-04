@@ -56,6 +56,10 @@ public class LoginOnlyActivity extends AppCompatActivity {
         btnBackToRegister.setOnClickListener(v -> {
             finish(); // Go back to registration screen
         });
+        
+        // Back button to return to home
+        MaterialButton btnBackToHome = findViewById(R.id.btn_back_to_home);
+        btnBackToHome.setOnClickListener(v -> finish());
     }
 
     private void handleLogin() {

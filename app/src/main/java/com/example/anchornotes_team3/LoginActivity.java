@@ -68,6 +68,10 @@ public class LoginActivity extends AppCompatActivity {
             Intent intent = new Intent(LoginActivity.this, LoginOnlyActivity.class);
             startActivity(intent);
         });
+        
+        // Back button to return to home
+        MaterialButton btnBackToHome = findViewById(R.id.btn_back_to_home);
+        btnBackToHome.setOnClickListener(v -> finish());
     }
     
     private void handleRegister() {

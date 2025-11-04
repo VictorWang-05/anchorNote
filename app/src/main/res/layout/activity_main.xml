@@ -114,11 +114,11 @@
                     android:textStyle="bold"
                     android:textColor="@color/orange_dark" />
 
-                <!-- Horizontal RecyclerView (scrolls left-to-right) - Height reduced to half -->
+                <!-- Horizontal RecyclerView (scrolls left-to-right) -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/pinnedRecyclerView"
                     android:layout_width="match_parent"
-                    android:layout_height="78dp"
+                    android:layout_height="108dp"
                     android:nestedScrollingEnabled="false"
                     android:paddingStart="16dp"
                     android:paddingEnd="16dp"
@@ -165,11 +165,11 @@
                     android:textStyle="bold"
                     android:textColor="@color/orange_dark" />
 
-                <!-- Horizontal RecyclerView (scrolls left-to-right) - Height reduced to half -->
+                <!-- Horizontal RecyclerView (scrolls left-to-right) -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/relevantNotesRecyclerView"
                     android:layout_width="match_parent"
-                    android:layout_height="78dp"
+                    android:layout_height="108dp"
                     android:nestedScrollingEnabled="false"
                     android:paddingStart="16dp"
                     android:paddingEnd="16dp"

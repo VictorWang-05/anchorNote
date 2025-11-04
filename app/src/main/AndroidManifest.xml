@@ -43,6 +43,11 @@
             android:name=".LoginOnlyActivity"
             android:exported="false" />
 
+        <!-- Account Activity -->
+        <activity
+            android:name=".AccountActivity"
+            android:exported="false" />
+
         <!-- Note Editor Activity -->
         <activity
             android:name=".NoteEditorActivity"

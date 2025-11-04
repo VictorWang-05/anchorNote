@@ -28,7 +28,7 @@ import com.example.anchornotes_team3.model.Geofence;
 import com.example.anchornotes_team3.model.Note;
 import com.example.anchornotes_team3.model.Tag;
 import com.example.anchornotes_team3.repository.NoteRepository;
-import com.example.anchornotes_team3.util.ChecklistTextWatcher;
+import com.example.anchornotes_team3.util.FormattingTextWatcher;
 import com.example.anchornotes_team3.util.MediaHelper;
 import com.example.anchornotes_team3.util.TextSpanUtils;
 import com.google.android.material.appbar.MaterialToolbar;
@@ -71,7 +71,6 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private MaterialButton btnSizeSmall;
     private MaterialButton btnSizeMedium;
     private MaterialButton btnSizeLarge;
-    private MaterialButton btnChecklist;
     private MaterialButton btnAddPhoto;
     private MaterialButton btnAddAudio;
 
@@ -83,6 +82,18 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private MenuItem pinMenuItem;
     private List<Tag> availableTags = new ArrayList<>();
     private boolean isNewNote = true;
+    
+    // Formatting toggle support
+    private FormattingTextWatcher formattingTextWatcher;
+    
+    // Track pending uploads
+    private int pendingUploads = 0;
+    private boolean shouldFinishAfterUploads = false;
+    
+    // State persistence keys
+    private static final String STATE_PHOTO_URI = "photo_uri";
+    private static final String STATE_IS_NEW_NOTE = "is_new_note";
+    private static final String STATE_NOTE_ID = "note_id";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -92,11 +103,30 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         // Initialize repository and helpers
         repository = NoteRepository.getInstance(this);
         mediaHelper = new MediaHelper(this);
+        
+        // Restore photo URI if activity was recreated (e.g., after camera app)
+        if (savedInstanceState != null) {
+            Uri restoredPhotoUri = savedInstanceState.getParcelable(STATE_PHOTO_URI);
+            isNewNote = savedInstanceState.getBoolean(STATE_IS_NEW_NOTE, true);
+            String savedNoteId = savedInstanceState.getString(STATE_NOTE_ID);
+            
+            if (restoredPhotoUri != null) {
+                mediaHelper.setCurrentPhotoUri(restoredPhotoUri);
+                android.util.Log.d("NoteEditor", "🔄 Restored photo URI: " + restoredPhotoUri);
+            }
+            
+            if (savedNoteId != null && currentNote != null) {
+                currentNote.setId(savedNoteId);
+            }
+            
+            android.util.Log.d("NoteEditor", "🔄 State restored - isNewNote: " + isNewNote);
+        }
 
         // Initialize UI components
         initializeViews();
         setupToolbar();
         setupChips();
+        setupFormattingToggle();
         setupFormattingBar();
         setupAttachmentsRecyclerView();
 
@@ -113,9 +143,6 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             currentNote = new Note();
             loadNoteIntoUI();
         }
-        
-        // Add checklist text watcher
-        etBody.addTextChangedListener(new ChecklistTextWatcher(etBody));
     }
 
     private void initializeViews() {
@@ -134,7 +161,6 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         btnSizeSmall = findViewById(R.id.btn_size_small);
         btnSizeMedium = findViewById(R.id.btn_size_medium);
         btnSizeLarge = findViewById(R.id.btn_size_large);
-        btnChecklist = findViewById(R.id.btn_checklist);
         btnAddPhoto = findViewById(R.id.btn_add_photo);
         btnAddAudio = findViewById(R.id.btn_add_audio);
     }
@@ -163,15 +189,115 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         });
     }
 
+    private void setupFormattingToggle() {
+        // Initialize formatting text watcher for toggle mode
+        formattingTextWatcher = new FormattingTextWatcher(etBody);
+        etBody.addTextChangedListener(formattingTextWatcher);
+    }
+
     private void setupFormattingBar() {
-        btnBold.setOnClickListener(v -> TextSpanUtils.toggleBold(etBody));
-        btnItalic.setOnClickListener(v -> TextSpanUtils.toggleItalic(etBody));
-        btnSizeSmall.setOnClickListener(v -> TextSpanUtils.applyTextSize(etBody, TextSpanUtils.TextSize.SMALL));
-        btnSizeMedium.setOnClickListener(v -> TextSpanUtils.applyTextSize(etBody, TextSpanUtils.TextSize.MEDIUM));
-        btnSizeLarge.setOnClickListener(v -> TextSpanUtils.applyTextSize(etBody, TextSpanUtils.TextSize.LARGE));
-        btnChecklist.setOnClickListener(v -> TextSpanUtils.insertChecklist(etBody));
+        btnBold.setOnClickListener(v -> {
+            int start = etBody.getSelectionStart();
+            int end = etBody.getSelectionEnd();
+            
+            if (start >= 0 && end > start) {
+                // Has selection - apply to selected text
+                TextSpanUtils.toggleBold(etBody);
+            } else {
+                // No selection - toggle mode for future typing
+                formattingTextWatcher.toggleBold();
+                updateButtonStates();
+            }
+        });
+        
+        btnItalic.setOnClickListener(v -> {
+            int start = etBody.getSelectionStart();
+            int end = etBody.getSelectionEnd();
+            
+            if (start >= 0 && end > start) {
+                // Has selection - apply to selected text
+                TextSpanUtils.toggleItalic(etBody);
+            } else {
+                // No selection - toggle mode for future typing
+                formattingTextWatcher.toggleItalic();
+                updateButtonStates();
+            }
+        });
+        
+        btnSizeSmall.setOnClickListener(v -> {
+            int start = etBody.getSelectionStart();
+            int end = etBody.getSelectionEnd();
+            
+            if (start >= 0 && end > start) {
+                // Has selection - apply to selected text
+                TextSpanUtils.applyTextSize(etBody, TextSpanUtils.TextSize.SMALL);
+            } else {
+                // No selection - toggle mode for future typing
+                formattingTextWatcher.setSize(TextSpanUtils.TextSize.SMALL);
+                updateButtonStates();
+            }
+        });
+        
+        btnSizeMedium.setOnClickListener(v -> {
+            int start = etBody.getSelectionStart();
+            int end = etBody.getSelectionEnd();
+            
+            if (start >= 0 && end > start) {
+                // Has selection - apply to selected text
+                TextSpanUtils.applyTextSize(etBody, TextSpanUtils.TextSize.MEDIUM);
+            } else {
+                // No selection - toggle mode for future typing
+                formattingTextWatcher.setSize(TextSpanUtils.TextSize.MEDIUM);
+                updateButtonStates();
+            }
+        });
+        
+        btnSizeLarge.setOnClickListener(v -> {
+            int start = etBody.getSelectionStart();
+            int end = etBody.getSelectionEnd();
+            
+            if (start >= 0 && end > start) {
+                // Has selection - apply to selected text
+                TextSpanUtils.applyTextSize(etBody, TextSpanUtils.TextSize.LARGE);
+            } else {
+                // No selection - toggle mode for future typing
+                formattingTextWatcher.setSize(TextSpanUtils.TextSize.LARGE);
+                updateButtonStates();
+            }
+        });
+        
         btnAddPhoto.setOnClickListener(v -> handleAddPhoto());
         btnAddAudio.setOnClickListener(v -> handleAddAudio());
+    }
+    
+    /**
+     * Update button appearance to show which formatting is active
+     */
+    private void updateButtonStates() {
+        // Update bold button
+        if (formattingTextWatcher.isBoldActive()) {
+            btnBold.setBackgroundColor(getColor(R.color.format_active));
+        } else {
+            btnBold.setBackgroundColor(getColor(android.R.color.transparent));
+        }
+        
+        // Update italic button
+        if (formattingTextWatcher.isItalicActive()) {
+            btnItalic.setBackgroundColor(getColor(R.color.format_active));
+        } else {
+            btnItalic.setBackgroundColor(getColor(android.R.color.transparent));
+        }
+        
+        // Update size buttons - reset all first
+        btnSizeSmall.setBackgroundColor(getColor(android.R.color.transparent));
+        btnSizeMedium.setBackgroundColor(getColor(android.R.color.transparent));
+        btnSizeLarge.setBackgroundColor(getColor(android.R.color.transparent));
+        
+        // Highlight active size button
+        if (formattingTextWatcher.isSizeActive()) {
+            // We need to check which size is active - for now just show indication
+            // You could extend FormattingTextWatcher to return which size if needed
+        }
     }
 
     private void setupAttachmentsRecyclerView() {
@@ -229,6 +355,9 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         updateLocationChip();
         updateReminderChip();
         updateAttachments();
+        
+        // Update pin icon in menu
+        updatePinIcon();
     }
 
     private void updateTagChips() {
@@ -541,19 +670,25 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         
+        android.util.Log.d("NoteEditor", "📷 onActivityResult: requestCode=" + requestCode + ", resultCode=" + resultCode);
+        
         if (resultCode == RESULT_OK) {
             if (requestCode == MediaHelper.REQUEST_IMAGE_CAPTURE) {
                 Uri photoUri = mediaHelper.getCurrentPhotoUri();
+                android.util.Log.d("NoteEditor", "📷 Camera photo URI: " + photoUri);
                 if (photoUri != null) {
                     Attachment attachment = new Attachment(Attachment.AttachmentType.PHOTO, photoUri);
                     currentNote.addAttachment(attachment);
+                    android.util.Log.d("NoteEditor", "📷 Photo attachment added! Total attachments: " + currentNote.getAttachments().size());
                     updateAttachments();
                 }
             } else if (requestCode == MediaHelper.REQUEST_IMAGE_PICK && data != null) {
                 Uri photoUri = data.getData();
+                android.util.Log.d("NoteEditor", "📷 Gallery photo URI: " + photoUri);
                 if (photoUri != null) {
                     Attachment attachment = new Attachment(Attachment.AttachmentType.PHOTO, photoUri);
                     currentNote.addAttachment(attachment);
+                    android.util.Log.d("NoteEditor", "📷 Photo attachment added! Total attachments: " + currentNote.getAttachments().size());
                     updateAttachments();
                 }
             }
@@ -573,6 +708,26 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         } else {
             Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        
+        // Save photo URI before activity is destroyed (e.g., when camera app opens)
+        Uri photoUri = mediaHelper.getCurrentPhotoUri();
+        if (photoUri != null) {
+            outState.putParcelable(STATE_PHOTO_URI, photoUri);
+            android.util.Log.d("NoteEditor", "💾 Saving photo URI: " + photoUri);
+        }
+        
+        // Save other state
+        outState.putBoolean(STATE_IS_NEW_NOTE, isNewNote);
+        if (currentNote != null && currentNote.getId() != null) {
+            outState.putString(STATE_NOTE_ID, currentNote.getId());
+        }
+        
+        android.util.Log.d("NoteEditor", "💾 State saved");
     }
 
     @Override
@@ -618,14 +773,32 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                 @Override
                 public void onSuccess(Note note) {
                     android.util.Log.d("NoteEditor", "✅ Note saved successfully! ID: " + note.getId());
+                    
+                    // Preserve local attachments before replacing currentNote
+                    List<Attachment> localAttachments = new ArrayList<>(currentNote.getAttachments());
+                    android.util.Log.d("NoteEditor", "💾 Preserving " + localAttachments.size() + " local attachments");
+                    
                     currentNote = note;
                     isNewNote = false;
                     
+                    // Restore local attachments that need to be uploaded
+                    for (Attachment attachment : localAttachments) {
+                        currentNote.addAttachment(attachment);
+                    }
+                    android.util.Log.d("NoteEditor", "💾 Restored attachments. Total: " + currentNote.getAttachments().size());
+                    
                     // After creating note, save reminders and attachments
-                    saveRemindersAndAttachments();
+                    int uploads = saveRemindersAndAttachments();
                     
                     Toast.makeText(NoteEditorActivity.this, R.string.note_saved, Toast.LENGTH_SHORT).show();
-                    finish();
+                    
+                    // Only finish if no uploads are pending
+                    if (uploads == 0) {
+                        finish();
+                    } else {
+                        shouldFinishAfterUploads = true;
+                        android.util.Log.d("NoteEditor", "⏳ Waiting for " + uploads + " uploads to complete...");
+                    }
                 }
 
                 @Override
@@ -642,10 +815,17 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                     currentNote = note;
                     
                     // After updating note, save reminders and attachments
-                    saveRemindersAndAttachments();
+                    int uploads = saveRemindersAndAttachments();
                     
                     Toast.makeText(NoteEditorActivity.this, R.string.note_saved, Toast.LENGTH_SHORT).show();
-                    finish();
+                    
+                    // Only finish if no uploads are pending
+                    if (uploads == 0) {
+                        finish();
+                    } else {
+                        shouldFinishAfterUploads = true;
+                        android.util.Log.d("NoteEditor", "⏳ Waiting for " + uploads + " uploads to complete...");
+                    }
                 }
 
                 @Override
@@ -658,9 +838,15 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     
     /**
      * Save reminders and upload attachments after note is created/updated
+     * @return number of uploads started
      */
-    private void saveRemindersAndAttachments() {
-        if (currentNote.getId() == null) return;
+    private int saveRemindersAndAttachments() {
+        if (currentNote.getId() == null) return 0;
+        
+        android.util.Log.d("NoteEditor", "💾 saveRemindersAndAttachments called for note " + currentNote.getId());
+        android.util.Log.d("NoteEditor", "💾 Total attachments: " + currentNote.getAttachments().size());
+        
+        pendingUploads = 0;
         
         // Save time reminder if set
         if (currentNote.hasTimeReminder()) {
@@ -694,47 +880,78 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         
         // Upload attachments that aren't uploaded yet
         for (Attachment attachment : currentNote.getAttachments()) {
+            android.util.Log.d("NoteEditor", "💾 Checking attachment: type=" + attachment.getType() + 
+                    ", isUploaded=" + attachment.isUploaded() + ", hasUri=" + (attachment.getUri() != null));
+            
             if (!attachment.isUploaded() && attachment.getUri() != null) {
                 if (attachment.getType() == Attachment.AttachmentType.PHOTO) {
+                    pendingUploads++;
+                    android.util.Log.d("NoteEditor", "📸 Starting photo upload for note " + currentNote.getId());
                     repository.uploadPhoto(currentNote.getId(), attachment.getUri(), new NoteRepository.AttachmentCallback() {
                         @Override
                         public void onSuccess(String attachmentId, String mediaUrl) {
+                            android.util.Log.d("NoteEditor", "✅ Photo uploaded successfully! ID: " + attachmentId);
                             attachment.setId(attachmentId);
                             attachment.setMediaUrl(mediaUrl);
                             attachment.setUploaded(true);
+                            onUploadComplete();
                         }
 
                         @Override
                         public void onError(String error) {
+                            android.util.Log.e("NoteEditor", "❌ Photo upload failed: " + error);
                             Toast.makeText(NoteEditorActivity.this, "Failed to upload photo: " + error, Toast.LENGTH_SHORT).show();
+                            onUploadComplete();
                         }
                     });
                 } else if (attachment.getType() == Attachment.AttachmentType.AUDIO && attachment.getDurationSec() != null) {
+                    pendingUploads++;
+                    android.util.Log.d("NoteEditor", "🎵 Starting audio upload for note " + currentNote.getId());
                     repository.uploadAudio(currentNote.getId(), attachment.getUri(), attachment.getDurationSec(), new NoteRepository.AttachmentCallback() {
                         @Override
                         public void onSuccess(String attachmentId, String mediaUrl) {
+                            android.util.Log.d("NoteEditor", "✅ Audio uploaded successfully! ID: " + attachmentId);
                             attachment.setId(attachmentId);
                             attachment.setMediaUrl(mediaUrl);
                             attachment.setUploaded(true);
+                            onUploadComplete();
                         }
 
                         @Override
                         public void onError(String error) {
+                            android.util.Log.e("NoteEditor", "❌ Audio upload failed: " + error);
                             Toast.makeText(NoteEditorActivity.this, "Failed to upload audio: " + error, Toast.LENGTH_SHORT).show();
+                            onUploadComplete();
                         }
                     });
                 }
             }
         }
+        
+        return pendingUploads;
+    }
+    
+    /**
+     * Called when an upload completes (success or failure)
+     */
+    private void onUploadComplete() {
+        pendingUploads--;
+        android.util.Log.d("NoteEditor", "📊 Upload complete. Remaining: " + pendingUploads);
+        
+        if (pendingUploads <= 0 && shouldFinishAfterUploads) {
+            android.util.Log.d("NoteEditor", "✅ All uploads complete. Finishing activity...");
+            finish();
+        }
     }
 
     private void togglePin() {
+        if (currentNote == null) return;
         currentNote.setPinned(!currentNote.isPinned());
         updatePinIcon();
     }
 
     private void updatePinIcon() {
-        if (pinMenuItem != null) {
+        if (pinMenuItem != null && currentNote != null) {
             if (currentNote.isPinned()) {
                 pinMenuItem.setIcon(android.R.drawable.btn_star_big_on);
                 pinMenuItem.setTitle(R.string.action_unpin);

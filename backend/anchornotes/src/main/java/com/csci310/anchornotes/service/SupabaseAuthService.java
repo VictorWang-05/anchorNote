@@ -184,6 +184,121 @@ public class SupabaseAuthService {
         }
     }
 
+    public void changePassword(String accessToken, String currentPassword, String newPassword) {
+        log.info("Changing password for user");
+
+        try {
+            // First, get user email from the access token
+            String userEmail = getUserEmailFromToken(accessToken);
+            log.info("Extracted email from token: {}", userEmail);
+
+            // Verify current password by attempting to login
+            try {
+                verifyCurrentPassword(userEmail, currentPassword);
+                log.info("Current password verified successfully");
+            } catch (UnauthorizedException e) {
+                log.error("Current password verification failed");
+                throw new BadRequestException("Current password is incorrect");
+            }
+
+            // If current password is correct, proceed with password change
+            String url = supabaseConfig.getUrl() + "/auth/v1/user";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("apikey", supabaseConfig.getAnonKey());
+            headers.set("Authorization", "Bearer " + accessToken);
+
+            Map<String, String> body = new HashMap<>();
+            body.put("password", newPassword);
+
+            HttpEntity<Map<String, String>> entity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.PUT,
+                    entity,
+                    String.class
+            );
+
+            log.info("Password changed successfully");
+
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (HttpClientErrorException e) {
+            log.error("Error changing password with Supabase: {}", e.getResponseBodyAsString());
+            throw new BadRequestException("Password change failed: " + extractErrorMessage(e.getResponseBodyAsString()));
+        } catch (Exception e) {
+            log.error("Unexpected error during password change", e);
+            throw new BadRequestException("Password change failed: " + e.getMessage());
+        }
+    }
+
+    private String getUserEmailFromToken(String accessToken) {
+        try {
+            String url = supabaseConfig.getUrl() + "/auth/v1/user";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("apikey", supabaseConfig.getAnonKey());
+            headers.set("Authorization", "Bearer " + accessToken);
+
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    String.class
+            );
+
+            JsonNode jsonResponse = objectMapper.readTree(response.getBody());
+            if (jsonResponse.has("email")) {
+                return jsonResponse.get("email").asText();
+            }
+
+            throw new BadRequestException("Could not extract email from token");
+        } catch (Exception e) {
+            log.error("Error getting user email from token", e);
+            throw new BadRequestException("Invalid access token");
+        }
+    }
+
+    private void verifyCurrentPassword(String email, String currentPassword) {
+        try {
+            String url = supabaseConfig.getUrl() + "/auth/v1/token?grant_type=password";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("apikey", supabaseConfig.getAnonKey());
+
+            Map<String, String> body = new HashMap<>();
+            body.put("email", email);
+            body.put("password", currentPassword);
+
+            HttpEntity<Map<String, String>> entity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    String.class
+            );
+
+            JsonNode jsonResponse = objectMapper.readTree(response.getBody());
+            if (!jsonResponse.has("access_token")) {
+                throw new UnauthorizedException("Current password is incorrect");
+            }
+        } catch (HttpClientErrorException e) {
+            log.error("Current password verification failed: {}", e.getResponseBodyAsString());
+            throw new UnauthorizedException("Current password is incorrect");
+        } catch (UnauthorizedException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error verifying current password", e);
+            throw new UnauthorizedException("Current password verification failed");
+        }
+    }
+
     private String extractErrorMessage(String responseBody) {
         try {
             JsonNode json = objectMapper.readTree(responseBody);

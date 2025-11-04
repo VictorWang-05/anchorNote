@@ -24,6 +24,11 @@ public interface ApiService {
     @POST("api/auth/login")
     Call<AuthResponse> login(@Body AuthRequest request);
     
+    // ==================== User Management ====================
+    
+    @PUT("api/user/change-password")
+    Call<ApiResponse<Void>> changePassword(@Body ChangePasswordRequest request);
+    
     // ==================== Notes ====================
     
     @GET("api/notes")
@@ -74,25 +79,25 @@ public interface ApiService {
     // ==================== Attachments ====================
     
     @Multipart
-    @POST("api/attachments/photo")
-    Call<AttachmentUploadResponse> uploadPhoto(
-            @Part("noteId") String noteId,
+    @POST("api/notes/{id}/photo/upload")
+    Call<NoteResponse> uploadPhoto(
+            @Path("id") String noteId,
             @Part MultipartBody.Part file
     );
     
     @Multipart
-    @POST("api/attachments/audio")
-    Call<AttachmentUploadResponse> uploadAudio(
-            @Part("noteId") String noteId,
+    @POST("api/notes/{id}/audio/upload")
+    Call<NoteResponse> uploadAudio(
+            @Path("id") String noteId,
             @Part MultipartBody.Part file,
             @Part("durationSec") Integer durationSec
     );
     
-    @DELETE("api/attachments/photo/{id}")
-    Call<Void> deletePhotoAttachment(@Path("id") String id);
+    @DELETE("api/notes/{noteId}/photo/{attachmentId}")
+    Call<Void> deletePhotoAttachment(@Path("noteId") String noteId, @Path("attachmentId") String attachmentId);
     
-    @DELETE("api/attachments/audio/{id}")
-    Call<Void> deleteAudioAttachment(@Path("id") String id);
+    @DELETE("api/notes/{noteId}/audio/{attachmentId}")
+    Call<Void> deleteAudioAttachment(@Path("noteId") String noteId, @Path("attachmentId") String attachmentId);
     
     // ==================== Search & Filter ====================
     

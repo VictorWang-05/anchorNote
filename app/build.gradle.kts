@@ -46,6 +46,9 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.gson)
     
+    // Image loading - Glide
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    
     // Core library desugaring for Java 8+ APIs on older Android versions
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     

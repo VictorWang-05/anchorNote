@@ -176,6 +176,13 @@ public class MediaHelper {
     public Uri getCurrentPhotoUri() {
         return currentPhotoUri;
     }
+    
+    /**
+     * Set the current photo URI (used when restoring state)
+     */
+    public void setCurrentPhotoUri(Uri uri) {
+        this.currentPhotoUri = uri;
+    }
 
     /**
      * Get the file of the current audio recording

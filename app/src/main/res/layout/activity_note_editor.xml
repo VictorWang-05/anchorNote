@@ -188,6 +188,7 @@
             android:minWidth="0dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
+            android:tooltipText="Make text bold (select text first)"
             app:cornerRadius="4dp" />
 
         <!-- Italic -->
@@ -203,6 +204,7 @@
             android:minWidth="0dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
+            android:tooltipText="Make text italic (select text first)"
             app:cornerRadius="4dp" />
 
         <!-- Size Small -->
@@ -218,6 +220,7 @@
             android:minWidth="0dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
+            android:tooltipText="Small text size"
             app:cornerRadius="4dp" />
 
         <!-- Size Medium -->
@@ -233,6 +236,7 @@
             android:minWidth="0dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
+            android:tooltipText="Medium text size"
             app:cornerRadius="4dp" />
 
         <!-- Size Large -->
@@ -248,21 +252,7 @@
             android:minWidth="0dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            app:cornerRadius="4dp" />
-
-        <!-- Checklist -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_checklist"
-            style="@style/Widget.Material3.Button.TextButton.Icon"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_weight="1"
-            android:text="☐"
-            android:textSize="18sp"
-            android:textColor="@color/text_dark"
-            android:minWidth="0dp"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
+            android:tooltipText="Large text size"
             app:cornerRadius="4dp" />
 
         <!-- Add Photo -->

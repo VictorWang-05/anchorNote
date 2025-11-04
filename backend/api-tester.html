@@ -260,11 +260,11 @@
             <strong>📌 Quick Start:</strong><br>
             1. Make sure backend is running: <code>cd backend/anchornotes && ./mvnw spring-boot:run</code><br>
             2. Register a new user or login with existing credentials<br>
-            3. Use the token to test all protected endpoints (31 total)
+            3. Use the token to test all protected endpoints (32 total)
         </div>
 
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('auth')">🔐 Auth (2)</div>
+            <div class="tab active" onclick="switchTab('auth')">🔐 Auth (3)</div>
             <div class="tab" onclick="switchTab('notes')">📝 Notes (10)</div>
             <div class="tab" onclick="switchTab('reminders')">⏰ Reminders (3)</div>
             <div class="tab" onclick="switchTab('tags')">🏷️ Tags (3)</div>
@@ -315,6 +315,25 @@
                         <button type="submit">Login</button>
                     </form>
                     <div id="loginResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge put">PUT</span>Change Password</h2>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Requires authentication token from login/register. You must provide your current password.
+                    </p>
+                    <form onsubmit="changePassword(event)">
+                        <div class="form-group">
+                            <label>Current Password:</label>
+                            <input type="password" id="changePasswordCurrent" placeholder="Your current password" required>
+                        </div>
+                        <div class="form-group">
+                            <label>New Password:</label>
+                            <input type="password" id="changePasswordNew" placeholder="Min 6 characters" required>
+                        </div>
+                        <button type="submit">Change Password</button>
+                    </form>
+                    <div id="changePasswordResponse" class="response hidden"></div>
                 </div>
             </div>
         </div>
@@ -1053,6 +1072,16 @@
             if (result.ok && result.data.data && result.data.data.token) {
                 document.getElementById('currentToken').value = result.data.data.token;
             }
+        }
+
+        async function changePassword(e) {
+            e.preventDefault();
+            const result = await apiRequest('/api/user/change-password', 'PUT', {
+                currentPassword: document.getElementById('changePasswordCurrent').value,
+                newPassword: document.getElementById('changePasswordNew').value
+            });
+
+            displayResponse('changePasswordResponse', result);
         }
 
         // NOTES ENDPOINTS

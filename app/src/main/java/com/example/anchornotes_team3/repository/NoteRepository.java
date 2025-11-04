@@ -84,6 +84,49 @@ public class NoteRepository {
         void onError(String error);
     }
     
+    // ==================== User Operations ====================
+    
+    /**
+     * Change user password
+     */
+    public void changePassword(String currentPassword, String newPassword, SimpleCallback callback) {
+        ChangePasswordRequest request = new ChangePasswordRequest(currentPassword, newPassword);
+        
+        getApiService().changePassword(request).enqueue(new Callback<ApiResponse<Void>>() {
+            @Override
+            public void onResponse(@NonNull Call<ApiResponse<Void>> call, @NonNull Response<ApiResponse<Void>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    ApiResponse<Void> apiResponse = response.body();
+                    if (apiResponse.isSuccess()) {
+                        Log.d(TAG, "Password changed successfully");
+                        callback.onSuccess();
+                    } else {
+                        String errorMsg = apiResponse.getMessage() != null ? apiResponse.getMessage() : "Failed to change password";
+                        Log.e(TAG, "Password change failed: " + errorMsg);
+                        callback.onError(errorMsg);
+                    }
+                } else {
+                    String errorMsg = "Failed to change password";
+                    try {
+                        if (response.errorBody() != null) {
+                            errorMsg = response.errorBody().string();
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error reading error body", e);
+                    }
+                    Log.e(TAG, "Password change failed: " + response.code());
+                    callback.onError(errorMsg);
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<ApiResponse<Void>> call, @NonNull Throwable t) {
+                Log.e(TAG, "Password change network error", t);
+                callback.onError("Network error: " + t.getMessage());
+            }
+        });
+    }
+    
     // ==================== Note Operations ====================
     
     /**
@@ -297,6 +340,30 @@ public class NoteRepository {
         getApiService().createTag(request).enqueue(callback);
     }
     
+    /**
+     * Set tags for a note (replaces existing tags)
+     */
+    public void setNoteTags(String noteId, List<String> tagIds, NoteCallback callback) {
+        SetTagsRequest request = new SetTagsRequest(tagIds);
+        getApiService().setNoteTags(noteId, request).enqueue(new Callback<NoteResponse>() {
+            @Override
+            public void onResponse(@NonNull Call<NoteResponse> call, @NonNull Response<NoteResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Note note = mapToNote(response.body());
+                    callback.onSuccess(note);
+                } else {
+                    callback.onError("Failed to set tags: " + response.code());
+                }
+            }
+            
+            @Override
+            public void onFailure(@NonNull Call<NoteResponse> call, @NonNull Throwable t) {
+                Log.e(TAG, "Error setting tags", t);
+                callback.onError("Network error: " + t.getMessage());
+            }
+        });
+    }
+    
     // ==================== Reminder Operations ====================
     
     /**
@@ -392,12 +459,16 @@ public class NoteRepository {
             RequestBody requestFile = RequestBody.create(MediaType.parse("image/*"), file);
             MultipartBody.Part body = MultipartBody.Part.createFormData("file", file.getName(), requestFile);
             
-            getApiService().uploadPhoto(noteId, body).enqueue(new Callback<ApiService.AttachmentUploadResponse>() {
+            getApiService().uploadPhoto(noteId, body).enqueue(new Callback<NoteResponse>() {
                 @Override
-                public void onResponse(@NonNull Call<ApiService.AttachmentUploadResponse> call, 
-                                     @NonNull Response<ApiService.AttachmentUploadResponse> response) {
+                public void onResponse(@NonNull Call<NoteResponse> call, 
+                                     @NonNull Response<NoteResponse> response) {
                     if (response.isSuccessful() && response.body() != null) {
-                        callback.onSuccess(response.body().getAttachmentId(), response.body().getMediaUrl());
+                        NoteResponse noteResponse = response.body();
+                        // Extract attachment info from the image field
+                        String attachmentId = noteResponse.getImage() != null ? noteResponse.getImage().getId() : null;
+                        String mediaUrl = noteResponse.getImage() != null ? noteResponse.getImage().getUrl() : null;
+                        callback.onSuccess(attachmentId, mediaUrl);
                     } else {
                         callback.onError("Failed to upload photo: " + response.code());
                     }
@@ -406,7 +477,7 @@ public class NoteRepository {
                 }
                 
                 @Override
-                public void onFailure(@NonNull Call<ApiService.AttachmentUploadResponse> call, @NonNull Throwable t) {
+                public void onFailure(@NonNull Call<NoteResponse> call, @NonNull Throwable t) {
                     Log.e(TAG, "Error uploading photo", t);
                     callback.onError("Network error: " + t.getMessage());
                     file.delete();
@@ -427,12 +498,16 @@ public class NoteRepository {
             RequestBody requestFile = RequestBody.create(MediaType.parse("audio/*"), file);
             MultipartBody.Part body = MultipartBody.Part.createFormData("file", file.getName(), requestFile);
             
-            getApiService().uploadAudio(noteId, body, durationSec).enqueue(new Callback<ApiService.AttachmentUploadResponse>() {
+            getApiService().uploadAudio(noteId, body, durationSec).enqueue(new Callback<NoteResponse>() {
                 @Override
-                public void onResponse(@NonNull Call<ApiService.AttachmentUploadResponse> call,
-                                     @NonNull Response<ApiService.AttachmentUploadResponse> response) {
+                public void onResponse(@NonNull Call<NoteResponse> call,
+                                     @NonNull Response<NoteResponse> response) {
                     if (response.isSuccessful() && response.body() != null) {
-                        callback.onSuccess(response.body().getAttachmentId(), response.body().getMediaUrl());
+                        NoteResponse noteResponse = response.body();
+                        // Extract attachment info from the audio field
+                        String attachmentId = noteResponse.getAudio() != null ? noteResponse.getAudio().getId() : null;
+                        String mediaUrl = noteResponse.getAudio() != null ? noteResponse.getAudio().getUrl() : null;
+                        callback.onSuccess(attachmentId, mediaUrl);
                     } else {
                         callback.onError("Failed to upload audio: " + response.code());
                     }
@@ -440,7 +515,7 @@ public class NoteRepository {
                 }
                 
                 @Override
-                public void onFailure(@NonNull Call<ApiService.AttachmentUploadResponse> call, @NonNull Throwable t) {
+                public void onFailure(@NonNull Call<NoteResponse> call, @NonNull Throwable t) {
                     Log.e(TAG, "Error uploading audio", t);
                     callback.onError("Network error: " + t.getMessage());
                     file.delete();
@@ -488,7 +563,7 @@ public class NoteRepository {
             Attachment photoAttachment = new Attachment(
                     img.getId(),  // Already a String
                     Attachment.AttachmentType.PHOTO,
-                    img.getMediaUrl(),
+                    img.getUrl(),
                     null
             );
             attachments.add(photoAttachment);
@@ -498,7 +573,7 @@ public class NoteRepository {
             Attachment audioAttachment = new Attachment(
                     aud.getId(),  // Already a String
                     Attachment.AttachmentType.AUDIO,
-                    aud.getMediaUrl(),
+                    aud.getUrl(),
                     aud.getDurationSec()
             );
             attachments.add(audioAttachment);

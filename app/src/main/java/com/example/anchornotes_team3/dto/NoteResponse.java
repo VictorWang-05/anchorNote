@@ -83,20 +83,15 @@ public class NoteResponse {
      */
     public static class AttachmentResponse {
         private String id;
-        private String mediaUrl;
-        private String mediaType;
+        private String url;  // Backend returns "url", not "mediaUrl"
         private Integer durationSec;
 
         public String getId() {
             return id;
         }
 
-        public String getMediaUrl() {
-            return mediaUrl;
-        }
-
-        public String getMediaType() {
-            return mediaType;
+        public String getUrl() {
+            return url;
         }
 
         public Integer getDurationSec() {

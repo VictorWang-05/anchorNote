@@ -3,6 +3,7 @@ package com.csci310.anchornotes.controller;
 import com.csci310.anchornotes.dto.ApiResponse;
 import com.csci310.anchornotes.dto.AuthRequest;
 import com.csci310.anchornotes.dto.AuthResponse;
+import com.csci310.anchornotes.dto.ChangePasswordRequest;
 import com.csci310.anchornotes.dto.RegisterRequest;
 import com.csci310.anchornotes.service.SupabaseAuthService;
 import jakarta.validation.Valid;

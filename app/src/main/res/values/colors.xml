@@ -11,4 +11,11 @@
     <color name="text_dark">#2C2C2C</color>
     <color name="text_secondary">#666666</color>
     <color name="separator_orange">#FF8C42</color>
+    
+    <!-- Account page colors -->
+    <color name="logout_red">#DC3545</color>
+    <color name="logout_red_dark">#C82333</color>
+    
+    <!-- Formatting buttons -->
+    <color name="format_active">#FFD4A3</color>
 </resources>

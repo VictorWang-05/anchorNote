@@ -28,13 +28,14 @@ public class TextSpanUtils {
 
     /**
      * Toggle bold style on the current selection
+     * Returns true if formatting was applied, false if no text was selected
      */
-    public static void toggleBold(EditText editText) {
+    public static boolean toggleBold(EditText editText) {
         int start = editText.getSelectionStart();
         int end = editText.getSelectionEnd();
 
         if (start < 0 || end < 0 || start == end) {
-            return;
+            return false;
         }
 
         Editable editable = editText.getText();
@@ -52,17 +53,19 @@ public class TextSpanUtils {
             editable.setSpan(new StyleSpan(Typeface.BOLD), start, end,
                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
+        return true;
     }
 
     /**
      * Toggle italic style on the current selection
+     * Returns true if formatting was applied, false if no text was selected
      */
-    public static void toggleItalic(EditText editText) {
+    public static boolean toggleItalic(EditText editText) {
         int start = editText.getSelectionStart();
         int end = editText.getSelectionEnd();
 
         if (start < 0 || end < 0 || start == end) {
-            return;
+            return false;
         }
 
         Editable editable = editText.getText();
@@ -80,17 +83,19 @@ public class TextSpanUtils {
             editable.setSpan(new StyleSpan(Typeface.ITALIC), start, end,
                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
+        return true;
     }
 
     /**
      * Apply text size to the current selection
+     * Returns true if formatting was applied, false if no text was selected
      */
-    public static void applyTextSize(EditText editText, TextSize size) {
+    public static boolean applyTextSize(EditText editText, TextSize size) {
         int start = editText.getSelectionStart();
         int end = editText.getSelectionEnd();
 
         if (start < 0 || end < 0 || start == end) {
-            return;
+            return false;
         }
 
         Editable editable = editText.getText();
@@ -104,32 +109,8 @@ public class TextSpanUtils {
         // Apply new size span
         editable.setSpan(new RelativeSizeSpan(size.scale), start, end,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return true;
     }
 
-    /**
-     * Insert checklist bullet at cursor position or convert selected text to checklist
-     */
-    public static void insertChecklist(EditText editText) {
-        int start = editText.getSelectionStart();
-        int end = editText.getSelectionEnd();
-
-        if (start < 0) {
-            return;
-        }
-
-        Editable editable = editText.getText();
-
-        if (start == end) {
-            // No selection - insert bullet at cursor
-            editable.insert(start, "☐ ");
-            editText.setSelection(start + 2);
-        } else {
-            // Has selection - prepend bullet to selected text
-            String selected = editable.subSequence(start, end).toString();
-            String withBullet = "☐ " + selected;
-            editable.replace(start, end, withBullet);
-            editText.setSelection(start + withBullet.length());
-        }
-    }
 }
 
