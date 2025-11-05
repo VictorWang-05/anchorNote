@@ -9,6 +9,7 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -16,6 +17,8 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.ItemTouchHelper;
+
+import android.content.pm.PackageManager;
 
 import com.example.anchornotes_team3.adapter.NoteAdapter;
 import com.example.anchornotes_team3.auth.AuthManager;
@@ -500,6 +503,65 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
+     * Manually check proximity to geofences and mark relevant notes
+     * This ensures notes appear in "Relevant Notes" even if we're already inside when geofence is registered
+     */
+    private void checkProximityToGeofences(List<GeofenceManager.GeofenceData> geofences) {
+        if (geofences == null || geofences.isEmpty()) {
+            return;
+        }
+        
+        // Check if we have location permission
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) 
+                != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "No location permission for proximity check");
+            return;
+        }
+        
+        Log.d(TAG, "Checking proximity to " + geofences.size() + " geofences...");
+        
+        // Get current location
+        com.google.android.gms.location.FusedLocationProviderClient fusedLocationClient = 
+            com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(this);
+        
+        fusedLocationClient.getCurrentLocation(
+            com.google.android.gms.location.Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+            null  // CancellationToken - null is acceptable
+        ).addOnSuccessListener(location -> {
+            if (location != null) {
+                Log.d(TAG, "Current location: " + location.getLatitude() + ", " + location.getLongitude());
+                
+                // Check distance to each geofence
+                for (GeofenceManager.GeofenceData geofence : geofences) {
+                    float[] distance = new float[1];
+                    android.location.Location.distanceBetween(
+                        location.getLatitude(), 
+                        location.getLongitude(),
+                        geofence.latitude, 
+                        geofence.longitude, 
+                        distance
+                    );
+                    
+                String noteId = geofence.geofenceId.replace("note_", "");
+                
+                if (distance[0] <= geofence.radiusMeters) {
+                    Log.d(TAG, "✅ Within range of geofence " + geofence.geofenceId + " (distance: " + distance[0] + "m, radius: " + geofence.radiusMeters + "m)");
+                    relevantNotesStore.addRelevantNote(noteId);
+                } else {
+                    Log.d(TAG, "❌ Outside range of geofence " + geofence.geofenceId + " (distance: " + distance[0] + "m, radius: " + geofence.radiusMeters + "m)");
+                    // Remove note from relevant notes if it's now outside the range
+                    relevantNotesStore.removeRelevantNote(noteId);
+                }
+                }
+            } else {
+                Log.w(TAG, "Could not get current location for proximity check");
+            }
+        }).addOnFailureListener(e -> {
+            Log.e(TAG, "Failed to get current location for proximity check", e);
+        });
+    }
+    
+    /**
      * Sync all geofences from backend and register with device
      * Called on app start to ensure all geofences are registered
      */
@@ -531,6 +593,8 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void onSuccess(String message) {
                                 Log.d(TAG, "Successfully synced " + geofences.size() + " geofences");
+                                // After syncing, check if we're currently near any geofences
+                                checkProximityToGeofences(geofenceDataList);
                             }
                             
                             @Override
