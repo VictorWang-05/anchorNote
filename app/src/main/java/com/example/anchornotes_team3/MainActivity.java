@@ -37,6 +37,7 @@ import retrofit2.Response;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 
@@ -776,7 +777,18 @@ public class MainActivity extends AppCompatActivity {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_tag, null);
         com.google.android.material.textfield.TextInputEditText etTag = dialogView.findViewById(R.id.et_tag);
         com.google.android.material.textfield.TextInputLayout etTagLayout = dialogView.findViewById(R.id.et_tag_layout);
+        com.google.android.material.chip.ChipGroup chipGroupCurrentTags = dialogView.findViewById(R.id.chip_group_current_tags);
         com.google.android.material.chip.ChipGroup chipGroupExisting = dialogView.findViewById(R.id.chip_group_existing_tags);
+        
+        // Get current note tags
+        List<com.example.anchornotes_team3.model.Tag> currentNoteTags = note.getTags() != null ? note.getTags() : new ArrayList<>();
+        Set<String> currentTagIds = currentNoteTags.stream()
+            .map(com.example.anchornotes_team3.model.Tag::getId)
+            .filter(id -> id != null)
+            .collect(Collectors.toSet());
+        
+        // Store dialog reference for refreshing chips
+        final androidx.appcompat.app.AlertDialog[] dialogRef = new androidx.appcompat.app.AlertDialog[1];
         
         // Selected color state (default to app orange)
         final String[] selectedColor = new String[]{"#FF8C42"};
@@ -823,6 +835,9 @@ public class MainActivity extends AppCompatActivity {
                         }
                         chip.setTag(newTag);
                         chip.setOnClickListener(view -> {
+                            if (dialogRef[0] != null) {
+                                dialogRef[0].dismiss();
+                            }
                             addTagToNote(note, newTag);
                         });
                         chipGroupExisting.addView(chip);
@@ -844,31 +859,61 @@ public class MainActivity extends AppCompatActivity {
         noteRepository.getAllTags(new NoteRepository.TagsCallback() {
             @Override
             public void onSuccess(List<com.example.anchornotes_team3.model.Tag> tags) {
-                // Populate existing tags as chips
-                chipGroupExisting.removeAllViews();
-                for (com.example.anchornotes_team3.model.Tag tag : tags) {
+                // Display current tags (tags already on the note) with delete icons
+                chipGroupCurrentTags.removeAllViews();
+                for (com.example.anchornotes_team3.model.Tag tag : currentNoteTags) {
                     com.google.android.material.chip.Chip chip = new com.google.android.material.chip.Chip(MainActivity.this);
                     chip.setText(tag.getName());
-                    chip.setCheckable(true);
-                    chip.setClickable(true);
+                    chip.setCloseIconVisible(true);
+                    chip.setCloseIconTint(android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE));
                     
                     // Set tag color if available
                     if (tag.getColor() != null && !tag.getColor().isEmpty()) {
                         try {
                             int color = android.graphics.Color.parseColor(tag.getColor());
                             chip.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(color));
-                            chip.setTextColor(android.content.res.ColorStateList.valueOf(
-                                android.graphics.Color.WHITE));
+                            chip.setTextColor(android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE));
                         } catch (Exception e) {
                             // Use default color if parsing fails
                         }
                     }
                     
-                    // Chip click listener will be set after dialog is created
-                    // (stored in tag for later reference)
                     chip.setTag(tag);
-                    
-                    chipGroupExisting.addView(chip);
+                    chip.setOnCloseIconClickListener(v -> {
+                        removeTagFromNote(note, tag, dialogRef[0], chipGroupCurrentTags, chipGroupExisting);
+                    });
+                    chipGroupCurrentTags.addView(chip);
+                }
+                
+                // Display available tags (tags not on the note)
+                chipGroupExisting.removeAllViews();
+                for (com.example.anchornotes_team3.model.Tag tag : tags) {
+                    if (!currentTagIds.contains(tag.getId())) {
+                        com.google.android.material.chip.Chip chip = new com.google.android.material.chip.Chip(MainActivity.this);
+                        chip.setText(tag.getName());
+                        chip.setCheckable(true);
+                        chip.setClickable(true);
+                        
+                        // Set tag color if available
+                        if (tag.getColor() != null && !tag.getColor().isEmpty()) {
+                            try {
+                                int color = android.graphics.Color.parseColor(tag.getColor());
+                                chip.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(color));
+                                chip.setTextColor(android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE));
+                            } catch (Exception e) {
+                                // Use default color if parsing fails
+                            }
+                        }
+                        
+                        chip.setTag(tag);
+                        chip.setOnClickListener(v -> {
+                            if (dialogRef[0] != null) {
+                                dialogRef[0].dismiss();
+                            }
+                            addTagToNote(note, tag);
+                        });
+                        chipGroupExisting.addView(chip);
+                    }
                 }
                 
                 // Create dialog
@@ -879,25 +924,7 @@ public class MainActivity extends AppCompatActivity {
                     .setNegativeButton(R.string.cancel, null)
                     .create();
                 
-                // Store dialog reference for chip click handlers
-                final androidx.appcompat.app.AlertDialog dialogRef = dialog;
-                
-                // Update chip click listeners to close dialog
-                for (int i = 0; i < chipGroupExisting.getChildCount(); i++) {
-                    View chip = chipGroupExisting.getChildAt(i);
-                    if (chip instanceof com.google.android.material.chip.Chip) {
-                        com.google.android.material.chip.Chip tagChip = (com.google.android.material.chip.Chip) chip;
-                        Object tagObj = tagChip.getTag();
-                        if (tagObj instanceof com.example.anchornotes_team3.model.Tag) {
-                            com.example.anchornotes_team3.model.Tag selectedTag = (com.example.anchornotes_team3.model.Tag) tagObj;
-                            tagChip.setOnClickListener(v -> {
-                                dialogRef.dismiss();
-                                addTagToNote(note, selectedTag);
-                            });
-                        }
-                    }
-                }
-                
+                dialogRef[0] = dialog;
                 dialog.show();
             }
             
@@ -911,6 +938,7 @@ public class MainActivity extends AppCompatActivity {
                     .setNegativeButton(R.string.cancel, null)
                     .create();
                 
+                dialogRef[0] = dialog;
                 dialog.show();
             }
         });
@@ -951,6 +979,130 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "Failed to create tag: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
+    }
+    
+    /**
+     * Remove a tag from a note
+     */
+    private void removeTagFromNote(Note note, com.example.anchornotes_team3.model.Tag tag, 
+                                    androidx.appcompat.app.AlertDialog dialog,
+                                    com.google.android.material.chip.ChipGroup chipGroupCurrentTags,
+                                    com.google.android.material.chip.ChipGroup chipGroupExisting) {
+        // Get current note tags
+        List<String> currentTagIds = note.getTags().stream()
+            .map(com.example.anchornotes_team3.model.Tag::getId)
+            .filter(id -> id != null)
+            .collect(Collectors.toList());
+        
+        // Remove tag if present
+        if (currentTagIds.contains(tag.getId())) {
+            currentTagIds.remove(tag.getId());
+            
+            // Update note with updated tags
+            noteRepository.setNoteTags(note.getId(), currentTagIds, new NoteRepository.NoteCallback() {
+                @Override
+                public void onSuccess(com.example.anchornotes_team3.model.Note updatedNote) {
+                    Toast.makeText(MainActivity.this, "Tag \"" + tag.getName() + "\" removed successfully", Toast.LENGTH_SHORT).show();
+                    
+                    // Refresh tag chips in dialog
+                    chipGroupCurrentTags.removeAllViews();
+                    chipGroupExisting.removeAllViews();
+                    
+                    // Reload tags to refresh display
+                    noteRepository.getAllTags(new NoteRepository.TagsCallback() {
+                        @Override
+                        public void onSuccess(List<com.example.anchornotes_team3.model.Tag> tags) {
+                            // Get updated note tags
+                            noteRepository.getNoteById(note.getId(), new NoteRepository.NoteCallback() {
+                                @Override
+                                public void onSuccess(com.example.anchornotes_team3.model.Note refreshedNote) {
+                                    List<com.example.anchornotes_team3.model.Tag> updatedCurrentTags = refreshedNote.getTags() != null ? refreshedNote.getTags() : new ArrayList<>();
+                                    Set<String> updatedCurrentTagIds = updatedCurrentTags.stream()
+                                        .map(com.example.anchornotes_team3.model.Tag::getId)
+                                        .filter(id -> id != null)
+                                        .collect(Collectors.toSet());
+                                    
+                                    // Display current tags (tags already on the note) with delete icons
+                                    for (com.example.anchornotes_team3.model.Tag t : updatedCurrentTags) {
+                                        com.google.android.material.chip.Chip chip = new com.google.android.material.chip.Chip(MainActivity.this);
+                                        chip.setText(t.getName());
+                                        chip.setCloseIconVisible(true);
+                                        chip.setCloseIconTint(android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE));
+                                        
+                                        if (t.getColor() != null && !t.getColor().isEmpty()) {
+                                            try {
+                                                int color = android.graphics.Color.parseColor(t.getColor());
+                                                chip.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(color));
+                                                chip.setTextColor(android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE));
+                                            } catch (Exception e) {}
+                                        }
+                                        
+                                        chip.setTag(t);
+                                        chip.setOnCloseIconClickListener(v -> {
+                                            removeTagFromNote(note, t, dialog, chipGroupCurrentTags, chipGroupExisting);
+                                        });
+                                        chipGroupCurrentTags.addView(chip);
+                                    }
+                                    
+                                    // Display available tags (tags not on the note)
+                                    for (com.example.anchornotes_team3.model.Tag t : tags) {
+                                        if (!updatedCurrentTagIds.contains(t.getId())) {
+                                            com.google.android.material.chip.Chip chip = new com.google.android.material.chip.Chip(MainActivity.this);
+                                            chip.setText(t.getName());
+                                            chip.setCheckable(true);
+                                            chip.setClickable(true);
+                                            
+                                            if (t.getColor() != null && !t.getColor().isEmpty()) {
+                                                try {
+                                                    int color = android.graphics.Color.parseColor(t.getColor());
+                                                    chip.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(color));
+                                                    chip.setTextColor(android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE));
+                                                } catch (Exception e) {}
+                                            }
+                                            
+                                            chip.setTag(t);
+                                            chip.setOnClickListener(v -> {
+                                                if (dialog != null) {
+                                                    dialog.dismiss();
+                                                }
+                                                addTagToNote(note, t);
+                                            });
+                                            chipGroupExisting.addView(chip);
+                                        }
+                                    }
+                                }
+                                
+                                @Override
+                                public void onError(String error) {
+                                    // If refresh fails, just close dialog
+                                    if (dialog != null) {
+                                        dialog.dismiss();
+                                    }
+                                    loadNotes();
+                                }
+                            });
+                        }
+                        
+                        @Override
+                        public void onError(String error) {
+                            // If refresh fails, just close dialog
+                            if (dialog != null) {
+                                dialog.dismiss();
+                            }
+                            loadNotes();
+                        }
+                    });
+                    
+                    // Refresh notes list
+                    loadNotes();
+                }
+                
+                @Override
+                public void onError(String error) {
+                    Toast.makeText(MainActivity.this, "Failed to remove tag: " + error, Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
     }
     
     /**

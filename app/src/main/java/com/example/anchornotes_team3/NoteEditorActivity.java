@@ -194,6 +194,11 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             // Template mode (create or edit)
             isTemplateMode = true;
             
+            // Hide time reminder chip for templates (templates don't support time reminders)
+            if (chipReminder != null) {
+                chipReminder.setVisibility(View.GONE);
+            }
+            
             if (templateId != null && !templateId.isEmpty()) {
                 // Editing existing template
                 editingTemplateId = templateId;
@@ -942,9 +947,9 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private void updateLocationChip() {
         if (currentNote.hasGeofence()) {
             Geofence geofence = currentNote.getGeofence();
-            String displayText = geofence.getAddressName() != null && !geofence.getAddressName().isEmpty() 
-                ? geofence.getAddressName() 
-                : "Location (" + geofence.getRadius() + "m)";
+            // Use short display name for the chip (e.g., "Lorenzo Apartments")
+            // Full address is still stored in backend for search
+            String displayText = geofence.getShortDisplayName();
             chipLocation.setText(displayText);
             chipLocation.setCloseIconVisible(true);
             chipLocation.setOnCloseIconClickListener(v -> clearLocation());

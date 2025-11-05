@@ -72,6 +72,36 @@ public class Geofence {
         this.addressName = addressName;
     }
 
+    /**
+     * Get a shortened display name suitable for UI chips
+     * Shows just the place name or first part of address
+     */
+    public String getShortDisplayName() {
+        if (addressName == null || addressName.isEmpty()) {
+            return "Location";
+        }
+        
+        // If address contains a comma, take just the first part (usually the place name or street)
+        int firstComma = addressName.indexOf(',');
+        if (firstComma > 0) {
+            String firstPart = addressName.substring(0, firstComma).trim();
+            // If first part is reasonable length (< 40 chars), use it
+            if (firstPart.length() <= 40) {
+                return firstPart;
+            }
+        }
+        
+        // If no comma or first part too long, truncate at 40 characters
+        if (addressName.length() > 40) {
+            return addressName.substring(0, 37) + "...";
+        }
+        
+        return addressName;
+    }
+
+    /**
+     * Get full display text with radius (for detailed views)
+     */
     public String getDisplayText() {
         if (addressName != null && !addressName.isEmpty()) {
             return addressName + " (" + radius + "m)";

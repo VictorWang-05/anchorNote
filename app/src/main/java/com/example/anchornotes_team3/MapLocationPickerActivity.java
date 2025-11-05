@@ -184,7 +184,28 @@ public class MapLocationPickerActivity extends AppCompatActivity implements OnMa
                     
                     if (place.getLatLng() != null) {
                         selectedLocation = place.getLatLng();
-                        selectedAddress = place.getAddress() != null ? place.getAddress() : place.getName();
+                        
+                        // Combine name and address for better searchability
+                        // This ensures users can search by both business name and street address
+                        String name = place.getName();
+                        String address = place.getAddress();
+                        
+                        if (name != null && address != null && !address.toLowerCase().contains(name.toLowerCase())) {
+                            // Both exist and name is not already in address - combine them
+                            selectedAddress = name + ", " + address;
+                        } else if (address != null) {
+                            // Use address (it might already contain the name)
+                            selectedAddress = address;
+                        } else if (name != null) {
+                            // Only name available
+                            selectedAddress = name;
+                        } else {
+                            // Fallback to coordinates
+                            selectedAddress = String.format(Locale.US, "%.6f, %.6f", 
+                                    place.getLatLng().latitude, place.getLatLng().longitude);
+                        }
+                        
+                        Log.d(TAG, "Storing address: " + selectedAddress);
                         tvSelectedAddress.setText(selectedAddress);
                         updateMapLocation();
                     }
