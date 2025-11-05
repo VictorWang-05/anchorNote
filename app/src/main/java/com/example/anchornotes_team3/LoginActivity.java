@@ -9,6 +9,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import com.example.anchornotes_team3.util.ThemeUtils;
 
 import com.example.anchornotes_team3.api.ApiClient;
 import com.example.anchornotes_team3.api.ApiService;
@@ -44,6 +45,7 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ThemeUtils.applySavedTheme(this);
         
         // Initialize auth manager first
         authManager = AuthManager.getInstance(this);

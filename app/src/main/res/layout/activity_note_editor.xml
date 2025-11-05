@@ -88,6 +88,7 @@
 
     <!-- Main content -->
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/nested_scroll_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
@@ -184,10 +185,14 @@
             android:layout_weight="1"
             android:text="@string/format_bold"
             android:textStyle="bold"
+            android:textSize="12sp"
             android:textColor="@color/text_dark"
             android:minWidth="0dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:maxLines="1"
             android:tooltipText="Make text bold (select text first)"
             app:cornerRadius="4dp" />
 
@@ -200,10 +205,14 @@
             android:layout_weight="1"
             android:text="@string/format_italic"
             android:textStyle="italic"
+            android:textSize="12sp"
             android:textColor="@color/text_dark"
             android:minWidth="0dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:maxLines="1"
             android:tooltipText="Make text italic (select text first)"
             app:cornerRadius="4dp" />
 

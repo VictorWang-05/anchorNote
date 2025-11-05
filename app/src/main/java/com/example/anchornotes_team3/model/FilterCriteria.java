@@ -15,12 +15,14 @@ public class FilterCriteria implements Parcelable {
     private Boolean pinned;
     private Boolean hasPhoto;
     private Boolean hasAudio;
+    private Boolean hasLocation;
 
     public FilterCriteria() {
         this.tagIds = new ArrayList<>();
         this.pinned = null;
         this.hasPhoto = null;
         this.hasAudio = null;
+        this.hasLocation = null;
     }
 
     protected FilterCriteria(Parcel in) {
@@ -31,6 +33,8 @@ public class FilterCriteria implements Parcelable {
         hasPhoto = tmpHasPhoto == 0 ? null : (tmpHasPhoto == 1);
         byte tmpHasAudio = in.readByte();
         hasAudio = tmpHasAudio == 0 ? null : (tmpHasAudio == 1);
+        byte tmpHasLocation = in.readByte();
+        hasLocation = tmpHasLocation == 0 ? null : (tmpHasLocation == 1);
     }
 
     public static final Creator<FilterCriteria> CREATOR = new Creator<FilterCriteria>() {
@@ -77,11 +81,20 @@ public class FilterCriteria implements Parcelable {
         this.hasAudio = hasAudio;
     }
 
+    public Boolean getHasLocation() {
+        return hasLocation;
+    }
+
+    public void setHasLocation(Boolean hasLocation) {
+        this.hasLocation = hasLocation;
+    }
+
     public boolean isEmpty() {
         return (tagIds == null || tagIds.isEmpty()) &&
                 pinned == null &&
                 hasPhoto == null &&
-                hasAudio == null;
+                hasAudio == null &&
+                hasLocation == null;
     }
 
     @Override
@@ -95,5 +108,6 @@ public class FilterCriteria implements Parcelable {
         dest.writeByte((byte) (pinned == null ? 0 : pinned ? 1 : 2));
         dest.writeByte((byte) (hasPhoto == null ? 0 : hasPhoto ? 1 : 2));
         dest.writeByte((byte) (hasAudio == null ? 0 : hasAudio ? 1 : 2));
+        dest.writeByte((byte) (hasLocation == null ? 0 : hasLocation ? 1 : 2));
     }
 }

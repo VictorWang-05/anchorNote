@@ -15,9 +15,11 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.ItemTouchHelper;
 
 import com.example.anchornotes_team3.adapter.NoteAdapter;
 import com.example.anchornotes_team3.auth.AuthManager;
+import com.example.anchornotes_team3.util.ThemeUtils;
 import com.example.anchornotes_team3.dto.GeofenceRegistrationResponse;
 import com.example.anchornotes_team3.geofence.GeofenceManager;
 import com.example.anchornotes_team3.model.Note;
@@ -75,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ThemeUtils.applySavedTheme(this);
         
         // Initialize auth manager first to check login status
         authManager = AuthManager.getInstance(this);
@@ -202,6 +205,64 @@ public class MainActivity extends AppCompatActivity {
         allNotesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         allNotesRecyclerView.setAdapter(allNotesAdapter);
         allNotesAdapter.setOnNoteClickListener(sharedListener);
+
+        // Attach swipe actions
+        attachSwipeHandlers(pinnedRecyclerView, pinnedAdapter);
+        attachSwipeHandlers(relevantRecyclerView, relevantAdapter);
+        attachSwipeHandlers(allNotesRecyclerView, allNotesAdapter);
+    }
+
+    private void attachSwipeHandlers(RecyclerView recyclerView, NoteAdapter adapter) {
+        ItemTouchHelper.SimpleCallback callback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh, @NonNull RecyclerView.ViewHolder target) {
+                return false;
+            }
+
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                int position = viewHolder.getBindingAdapterPosition();
+                com.example.anchornotes_team3.model.Note note = adapter.getNoteAt(position);
+                if (note == null) {
+                    adapter.notifyItemChanged(position);
+                    return;
+                }
+
+                if (direction == ItemTouchHelper.LEFT) {
+                    // Immediately reset swipe UI to avoid temporary gap
+                    adapter.notifyItemChanged(position);
+                    // Delete with confirm
+                    new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
+                        .setTitle(R.string.delete_note)
+                        .setMessage(getString(R.string.delete_note_confirmation) + "\n\n" + (note.getTitle() == null ? "Untitled Note" : note.getTitle()))
+                        .setPositiveButton(R.string.delete_note, (d, which) -> {
+                            deleteNote(note.getId());
+                        })
+                        .setNegativeButton(R.string.cancel, null)
+                        .setOnDismissListener(null)
+                        .show();
+                } else if (direction == ItemTouchHelper.RIGHT) {
+                    // Reset swipe right state immediately; perform action in background
+                    adapter.notifyItemChanged(position);
+                    boolean newPinStatus = !note.isPinned();
+                    noteRepository.pinNote(note.getId(), newPinStatus, new NoteRepository.NoteCallback() {
+                        @Override
+                        public void onSuccess(Note updatedNote) {
+                            String message = newPinStatus ? "Note pinned" : "Note unpinned";
+                            Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
+                            loadNotes();
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            Toast.makeText(MainActivity.this, "Failed to " + (newPinStatus ? "pin" : "unpin") + ": " + error, Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            }
+        };
+
+        new ItemTouchHelper(callback).attachToRecyclerView(recyclerView);
     }
     
     private void setupClickListeners() {
@@ -248,6 +309,24 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "Please login first", Toast.LENGTH_SHORT).show();
                 Intent intent = new Intent(MainActivity.this, LoginActivity.class);
                 startActivity(intent);
+            }
+        });
+
+        // Stats FAB click
+        com.google.android.material.floatingactionbutton.FloatingActionButton statsFab = findViewById(R.id.statsFab);
+        statsFab.setOnClickListener(v -> {
+            try {
+                if (authManager.isLoggedIn()) {
+                    Intent intent = new Intent(MainActivity.this, StatisticsActivity.class);
+                    startActivity(intent);
+                } else {
+                    Toast.makeText(MainActivity.this, "Please login first", Toast.LENGTH_SHORT).show();
+                    Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+                    startActivity(intent);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error opening statistics", e);
+                Toast.makeText(MainActivity.this, "Unable to open Statistics: " + e.getMessage(), Toast.LENGTH_LONG).show();
             }
         });
     }

@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.anchornotes_team3.auth.AuthManager;
 import com.example.anchornotes_team3.repository.NoteRepository;
+import com.example.anchornotes_team3.util.ThemeUtils;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 
@@ -24,11 +25,15 @@ public class AccountActivity extends AppCompatActivity {
     private MaterialButton btnLogout;
     private MaterialButton btnChangePassword;
     private MaterialButton btnBack;
+    private MaterialButton btnTheme;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_account);
+
+        // Apply saved theme early
+        ThemeUtils.applySavedTheme(this);
 
         // Initialize managers and repositories
         authManager = AuthManager.getInstance(this);
@@ -39,6 +44,7 @@ public class AccountActivity extends AppCompatActivity {
         btnLogout = findViewById(R.id.btn_logout);
         btnChangePassword = findViewById(R.id.btn_change_password);
         btnBack = findViewById(R.id.btn_back);
+        btnTheme = findViewById(R.id.btn_theme);
 
         // Check if user is logged in
         if (!authManager.isLoggedIn()) {
@@ -62,6 +68,32 @@ public class AccountActivity extends AppCompatActivity {
 
         // Change password button click
         btnChangePassword.setOnClickListener(v -> showChangePasswordDialog());
+
+        // Theme button click
+        btnTheme.setOnClickListener(v -> showThemeDialog());
+    }
+
+    private void showThemeDialog() {
+        ThemeUtils.ThemeMode current = ThemeUtils.getSavedMode(this);
+        String[] options = new String[]{getString(R.string.theme_follow_system), getString(R.string.theme_light), getString(R.string.theme_dark)};
+        int checked = 0;
+        if (current == ThemeUtils.ThemeMode.LIGHT) checked = 1;
+        else if (current == ThemeUtils.ThemeMode.DARK) checked = 2;
+
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.theme)
+            .setSingleChoiceItems(options, checked, null)
+            .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                androidx.appcompat.app.AlertDialog ad = (androidx.appcompat.app.AlertDialog) dialog;
+                int whichSel = ad.getListView().getCheckedItemPosition();
+                ThemeUtils.ThemeMode selected = ThemeUtils.ThemeMode.FOLLOW_SYSTEM;
+                if (whichSel == 1) selected = ThemeUtils.ThemeMode.LIGHT;
+                else if (whichSel == 2) selected = ThemeUtils.ThemeMode.DARK;
+                ThemeUtils.setMode(this, selected);
+                recreate();
+            })
+            .setNegativeButton(R.string.cancel, null)
+            .show();
     }
 
     private void showChangePasswordDialog() {

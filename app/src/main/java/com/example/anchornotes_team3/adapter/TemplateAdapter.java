@@ -33,6 +33,7 @@ public class TemplateAdapter extends RecyclerView.Adapter<TemplateAdapter.Templa
     public interface OnTemplateClickListener {
         void onUseTemplate(Template template);
         void onDeleteTemplate(Template template);
+        void onEditTemplate(Template template);
     }
     
     public void setOnTemplateClickListener(OnTemplateClickListener listener) {
@@ -67,6 +68,7 @@ public class TemplateAdapter extends RecyclerView.Adapter<TemplateAdapter.Templa
         private TextView tvTemplatePreview;
         private ChipGroup chipGroupTags;
         private MaterialButton btnUseTemplate;
+        private MaterialButton btnEditTemplate;
         private MaterialButton btnDeleteTemplate;
         
         public TemplateViewHolder(@NonNull View itemView) {
@@ -75,6 +77,7 @@ public class TemplateAdapter extends RecyclerView.Adapter<TemplateAdapter.Templa
             tvTemplatePreview = itemView.findViewById(R.id.tv_template_preview);
             chipGroupTags = itemView.findViewById(R.id.chip_group_tags);
             btnUseTemplate = itemView.findViewById(R.id.btn_use_template);
+            btnEditTemplate = itemView.findViewById(R.id.btn_edit_template);
             btnDeleteTemplate = itemView.findViewById(R.id.btn_delete_template);
         }
         
@@ -120,6 +123,12 @@ public class TemplateAdapter extends RecyclerView.Adapter<TemplateAdapter.Templa
             }
             
             // Set up click listeners
+            btnEditTemplate.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onEditTemplate(template);
+                }
+            });
+            
             btnUseTemplate.setOnClickListener(v -> {
                 if (listener != null) {
                     listener.onUseTemplate(template);

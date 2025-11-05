@@ -23,6 +23,9 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -34,6 +37,7 @@ import com.example.anchornotes_team3.model.Note;
 import com.example.anchornotes_team3.model.Tag;
 import com.example.anchornotes_team3.repository.NoteRepository;
 import com.example.anchornotes_team3.util.FormattingTextWatcher;
+import com.example.anchornotes_team3.util.ThemeUtils;
 import com.example.anchornotes_team3.util.GeocoderHelper;
 import com.example.anchornotes_team3.util.MarkdownConverter;
 import com.example.anchornotes_team3.util.MediaHelper;
@@ -80,6 +84,8 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private MaterialButton btnSizeLarge;
     private MaterialButton btnAddPhoto;
     private MaterialButton btnAddAudio;
+    private LinearLayout formattingBar; // Reference to formatting bar container
+    private androidx.core.widget.NestedScrollView nestedScrollView; // Reference to scroll view
 
     // Data
     private Note currentNote;
@@ -92,6 +98,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private List<Tag> availableTags = new ArrayList<>();
     private boolean isNewNote = true;
     private boolean isTemplateMode = false; // Flag to indicate if creating/editing a template
+    private String editingTemplateId = null; // ID of template being edited (null if creating new)
     
     // Formatting toggle support
     private FormattingTextWatcher formattingTextWatcher;
@@ -99,6 +106,12 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     // Track pending uploads
     private int pendingUploads = 0;
     private boolean shouldFinishAfterUploads = false;
+    
+    // Auto-save tracking
+    private boolean isAutoSaving = false;
+    private String lastSavedTitle = "";
+    private String lastSavedText = "";
+    private boolean hasUnsavedChanges = false;
 
     // Audio playback
     private MediaPlayer mediaPlayer;
@@ -117,6 +130,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     
     // Permission request codes
     private static final int REQUEST_CODE_LOCATION_PERMISSION = 101;
+    private static final int REQUEST_CODE_BACKGROUND_LOCATION_PERMISSION = 102;
     
     // Activity request codes
     private static final int REQUEST_CODE_MAP_LOCATION_PICKER = 201;
@@ -124,6 +138,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ThemeUtils.applySavedTheme(this);
         setContentView(R.layout.activity_note_editor);
 
         // Initialize repository and helpers
@@ -156,6 +171,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         setupChips();
         setupFormattingToggle();
         setupFormattingBar();
+        setupKeyboardHandling(); // Handle keyboard to keep formatting bar visible
         setupAttachmentsRecyclerView();
 
         // Load available tags
@@ -164,16 +180,46 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         // Load or create note
         String noteId = getIntent().getStringExtra("note_id");
         boolean templateMode = getIntent().getBooleanExtra("is_template_mode", false);
+        String templateId = getIntent().getStringExtra("template_id");
         
         if (templateMode) {
-            // Template creation mode
+            // Template mode (create or edit)
             isTemplateMode = true;
-            isNewNote = true;
-            currentNote = new Note();
-            loadNoteIntoUI();
-            // Update toolbar title
-            if (getSupportActionBar() != null) {
-                getSupportActionBar().setTitle(R.string.create_template);
+            
+            if (templateId != null && !templateId.isEmpty()) {
+                // Editing existing template
+                editingTemplateId = templateId;
+                isNewNote = false;
+                String templateName = getIntent().getStringExtra("template_name");
+                String templateText = getIntent().getStringExtra("template_text");
+                boolean templatePinned = getIntent().getBooleanExtra("template_pinned", false);
+                
+                // Create Note object from template data for editing
+                currentNote = new Note();
+                currentNote.setTitle(templateName != null ? templateName : "");
+                currentNote.setText(templateText != null ? templateText : "");
+                currentNote.setPinned(templatePinned);
+                
+                // Note: Tags and geofence are not passed via intent extras
+                // They will be empty when editing, which is fine - user can re-add them
+                // The template's tags/geofence will be preserved on the backend when updating
+                
+                // Load template data into UI
+                loadNoteIntoUI();
+                
+                // Update toolbar title
+                if (getSupportActionBar() != null) {
+                    getSupportActionBar().setTitle("Edit Template");
+                }
+            } else {
+                // Creating new template
+                isNewNote = true;
+                currentNote = new Note();
+                loadNoteIntoUI();
+                // Update toolbar title
+                if (getSupportActionBar() != null) {
+                    getSupportActionBar().setTitle(R.string.create_template);
+                }
             }
         } else if (noteId != null && !noteId.isEmpty()) {
             isNewNote = false;
@@ -203,6 +249,56 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         btnSizeLarge = findViewById(R.id.btn_size_large);
         btnAddPhoto = findViewById(R.id.btn_add_photo);
         btnAddAudio = findViewById(R.id.btn_add_audio);
+        formattingBar = findViewById(R.id.formatting_bar);
+        nestedScrollView = findViewById(R.id.nested_scroll_view);
+    }
+
+    /**
+     * Setup keyboard handling to keep formatting bar visible above keyboard
+     */
+    private void setupKeyboardHandling() {
+        if (formattingBar == null) return;
+
+        // Use post to get padding after layout
+        formattingBar.post(() -> {
+            // Store original padding values after layout
+            final int originalTopPadding = formattingBar.getPaddingTop();
+            final int originalLeftPadding = formattingBar.getPaddingLeft();
+            final int originalRightPadding = formattingBar.getPaddingRight();
+
+            // Use WindowInsetsCompat to adjust formatting bar position when keyboard appears
+            ViewCompat.setOnApplyWindowInsetsListener(formattingBar, (v, insets) -> {
+                Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
+                Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+                
+                // Set bottom padding to match keyboard height to keep formatting bar above keyboard
+                int bottomPadding = Math.max(imeInsets.bottom, systemBars.bottom);
+                v.setPadding(
+                    originalLeftPadding,
+                    originalTopPadding,
+                    originalRightPadding,
+                    bottomPadding
+                );
+                
+                // Also adjust NestedScrollView bottom padding so content can scroll above formatting bar
+                if (nestedScrollView != null) {
+                    int formattingBarHeight = formattingBar.getHeight();
+                    if (formattingBarHeight == 0) {
+                        // Fallback: approximate height (56dp)
+                        formattingBarHeight = (int) (56 * getResources().getDisplayMetrics().density);
+                    }
+                    
+                    nestedScrollView.setPadding(
+                        nestedScrollView.getPaddingLeft(),
+                        nestedScrollView.getPaddingTop(),
+                        nestedScrollView.getPaddingRight(),
+                        formattingBarHeight + bottomPadding
+                    );
+                }
+                
+                return insets;
+            });
+        });
     }
 
     private void setupToolbar() {
@@ -233,6 +329,34 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         // Initialize formatting text watcher for toggle mode
         formattingTextWatcher = new FormattingTextWatcher(etBody);
         etBody.addTextChangedListener(formattingTextWatcher);
+        
+        // Track text changes for auto-save
+        etBody.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                hasUnsavedChanges = true;
+            }
+            
+            @Override
+            public void afterTextChanged(android.text.Editable s) {}
+        });
+        
+        // Track title changes for auto-save
+        etTitle.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                hasUnsavedChanges = true;
+            }
+            
+            @Override
+            public void afterTextChanged(android.text.Editable s) {}
+        });
     }
 
     private void setupFormattingBar() {
@@ -389,6 +513,11 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
 
         etTitle.setText(currentNote.getTitle());
 
+        // Temporarily remove TextWatcher to prevent interference when loading text
+        if (formattingTextWatcher != null) {
+            etBody.removeTextChangedListener(formattingTextWatcher);
+        }
+
         // Convert Markdown to formatted text (Spanned) when loading
         String noteText = currentNote.getText();
         if (noteText != null && !noteText.isEmpty()) {
@@ -400,6 +529,13 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             etBody.setText("");
         }
 
+        // Re-add TextWatcher after setting text
+        if (formattingTextWatcher != null) {
+            etBody.addTextChangedListener(formattingTextWatcher);
+            // Reset TextWatcher state to prevent interference
+            formattingTextWatcher.reset();
+        }
+
         // Update chips
         updateTagChips();
         updateLocationChip();
@@ -408,6 +544,132 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
 
         // Update pin icon in menu
         updatePinIcon();
+        
+        // Track last saved state for change detection
+        updateLastSavedState();
+    }
+    
+    /**
+     * Update the last saved state to track changes
+     */
+    private void updateLastSavedState() {
+        lastSavedTitle = currentNote.getTitle() != null ? currentNote.getTitle() : "";
+        lastSavedText = currentNote.getText() != null ? currentNote.getText() : "";
+        hasUnsavedChanges = false;
+    }
+    
+    /**
+     * Check if there are unsaved changes
+     */
+    private boolean hasUnsavedChanges() {
+        if (isTemplateMode) {
+            // For templates, we don't auto-save
+            return false;
+        }
+        
+        String currentTitle = etTitle.getText() != null ? etTitle.getText().toString().trim() : "";
+        String currentText = etBody.getText() != null ? MarkdownConverter.toMarkdown(etBody.getText()) : "";
+        
+        // Check if title or text has changed
+        boolean titleChanged = !currentTitle.equals(lastSavedTitle);
+        boolean textChanged = !currentText.equals(lastSavedText);
+        
+        return titleChanged || textChanged;
+    }
+    
+    /**
+     * Auto-save note without showing toast or finishing activity
+     */
+    private void autoSaveNote() {
+        // Don't auto-save if already saving or if in template mode
+        if (isAutoSaving || isTemplateMode) {
+            return;
+        }
+        
+        // Don't auto-save if no changes
+        if (!hasUnsavedChanges()) {
+            return;
+        }
+        
+        // Don't auto-save empty notes (new notes without content)
+        String title = etTitle.getText().toString().trim();
+        String text = etBody.getText() != null ? MarkdownConverter.toMarkdown(etBody.getText()) : "";
+        
+        if (isNewNote && title.isEmpty() && text.isEmpty()) {
+            // Empty new note - don't auto-save
+            return;
+        }
+        
+        isAutoSaving = true;
+        android.util.Log.d("NoteEditor", "💾 Auto-saving note...");
+        
+        currentNote.setTitle(title);
+        currentNote.setText(text);
+        
+        if (isNewNote) {
+            // Create new note
+            repository.createNote(currentNote, new NoteRepository.NoteCallback() {
+                @Override
+                public void onSuccess(Note note) {
+                    android.util.Log.d("NoteEditor", "✅ Note auto-saved successfully! ID: " + note.getId());
+                    
+                    // Preserve local attachments
+                    List<Attachment> localAttachments = new ArrayList<>(currentNote.getAttachments());
+                    currentNote = note;
+                    isNewNote = false;
+                    
+                    // Restore local attachments
+                    for (Attachment attachment : localAttachments) {
+                        currentNote.addAttachment(attachment);
+                    }
+                    
+                    // Save reminders and attachments (without finishing)
+                    saveRemindersAndAttachments();
+                    
+                    // Update last saved state
+                    updateLastSavedState();
+                    isAutoSaving = false;
+                }
+                
+                @Override
+                public void onError(String error) {
+                    android.util.Log.e("NoteEditor", "❌ Failed to auto-save note: " + error);
+                    isAutoSaving = false;
+                }
+            });
+        } else {
+            // Update existing note
+            repository.updateNote(currentNote, new NoteRepository.NoteCallback() {
+                @Override
+                public void onSuccess(Note note) {
+                    android.util.Log.d("NoteEditor", "✅ Note auto-updated successfully! ID: " + note.getId());
+                    
+                    // Preserve local attachments
+                    List<Attachment> localAttachments = new ArrayList<>(currentNote.getAttachments());
+                    currentNote = note;
+                    
+                    // Restore local attachments that need to be uploaded
+                    for (Attachment attachment : localAttachments) {
+                        if (!attachment.isUploaded()) {
+                            currentNote.addAttachment(attachment);
+                        }
+                    }
+                    
+                    // Save reminders and attachments (without finishing)
+                    saveRemindersAndAttachments();
+                    
+                    // Update last saved state
+                    updateLastSavedState();
+                    isAutoSaving = false;
+                }
+                
+                @Override
+                public void onError(String error) {
+                    android.util.Log.e("NoteEditor", "❌ Failed to auto-update note: " + error);
+                    isAutoSaving = false;
+                }
+            });
+        }
     }
 
     private void updateTagChips() {
@@ -688,15 +950,14 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
      * Save geofence to backend and register with device
      */
     private void saveGeofenceToBackend(Geofence geofence) {
-        // Check location permission first
-        boolean hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) 
-                == PackageManager.PERMISSION_GRANTED;
-        boolean locationEnabled = geofenceManager.isLocationEnabled();
+        // Check foreground location permission first
+        boolean hasForegroundPermission = ContextCompat.checkSelfPermission(this, 
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
         
-        android.util.Log.d("NoteEditor", "Geofence check - Permission: " + hasPermission + ", Location enabled: " + locationEnabled);
+        android.util.Log.d("NoteEditor", "Geofence check - Foreground permission: " + hasForegroundPermission);
         
-        if (!hasPermission) {
-            // Store pending geofence and request permission
+        // Step 1: Request foreground location permission if needed
+        if (!hasForegroundPermission) {
             pendingGeofence = geofence;
             ActivityCompat.requestPermissions(this,
                 new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
@@ -704,7 +965,43 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             return;
         }
         
+        // Step 2: For Android 10+ (API 29+), also request background location permission
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            boolean hasBackgroundPermission = ContextCompat.checkSelfPermission(this,
+                    android.Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED;
+            
+            android.util.Log.d("NoteEditor", "Background permission check (Android 10+): " + hasBackgroundPermission);
+            
+            if (!hasBackgroundPermission) {
+                // Store pending geofence and request background permission
+                pendingGeofence = geofence;
+                
+                // Show explanation dialog first (required by Google Play policy)
+                new androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("Background Location Required")
+                    .setMessage("To receive location reminders even when the app is closed, please allow " +
+                               "\"Allow all the time\" in the next screen.\n\n" +
+                               "This enables the app to notify you when you enter a saved location.")
+                    .setPositiveButton("Continue", (dialog, which) -> {
+                        ActivityCompat.requestPermissions(NoteEditorActivity.this,
+                            new String[]{android.Manifest.permission.ACCESS_BACKGROUND_LOCATION},
+                            REQUEST_CODE_BACKGROUND_LOCATION_PERMISSION);
+                    })
+                    .setNegativeButton("Cancel", (dialog, which) -> {
+                        Toast.makeText(this, 
+                            "Geofence saved but won't trigger in background without permission", 
+                            Toast.LENGTH_LONG).show();
+                        pendingGeofence = null;
+                        // Still save to backend, just won't register on device
+                        saveGeofenceToBackendWithoutDeviceRegistration(geofence);
+                    })
+                    .show();
+                return;
+            }
+        }
+        
         // Check if location services are enabled
+        boolean locationEnabled = geofenceManager.isLocationEnabled();
         if (!locationEnabled) {
             Toast.makeText(this, 
                 "Location services are disabled. Please enable location in Settings → Location.", 
@@ -712,7 +1009,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             // Still save to backend - will work when location is enabled
         }
         
-        // Save to backend
+        // All permissions granted - save to backend and register with device
         repository.setGeofence(currentNote.getId(), geofence, new NoteRepository.NoteCallback() {
             @Override
             public void onSuccess(Note note) {
@@ -730,6 +1027,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                         public void onSuccess(String message) {
                             Toast.makeText(NoteEditorActivity.this, 
                                 R.string.location_saved, Toast.LENGTH_SHORT).show();
+                            android.util.Log.d("NoteEditor", "✅ Geofence registered on device: " + message);
                         }
                         
                         @Override
@@ -742,9 +1040,9 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                             if (error.contains("Location services are disabled")) {
                                 message = "Geofence saved. Enable location services in Settings for it to work.";
                             } else if (error.contains("not available")) {
-                                message = "Geofence saved. Will work on real devices or when location is enabled.";
+                                message = "Geofence saved.";
                             } else {
-                                message = "Geofence saved to backend. Device registration failed: " + error;
+                                message = "Geofence saved to cloud but device registration failed: " + error;
                             }
                             
                             Toast.makeText(NoteEditorActivity.this, message, Toast.LENGTH_LONG).show();
@@ -757,6 +1055,29 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             public void onError(String error) {
                 Toast.makeText(NoteEditorActivity.this, 
                     "Failed to save geofence: " + error, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    /**
+     * Save geofence to backend only (without device registration)
+     * Used when background permission is denied but user still wants to save
+     */
+    private void saveGeofenceToBackendWithoutDeviceRegistration(Geofence geofence) {
+        repository.setGeofence(currentNote.getId(), geofence, new NoteRepository.NoteCallback() {
+            @Override
+            public void onSuccess(Note note) {
+                currentNote = note;
+                updateLocationChip();
+                Toast.makeText(NoteEditorActivity.this, 
+                    "Location saved (will sync when permissions are granted)", 
+                    Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onError(String error) {
+                Toast.makeText(NoteEditorActivity.this, 
+                    "Failed to save location: " + error, Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -1014,16 +1335,40 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             } else if (requestCode == MediaHelper.REQUEST_LOCATION_PERMISSION) {
                 Toast.makeText(this, "Location permission granted", Toast.LENGTH_SHORT).show();
             } else if (requestCode == REQUEST_CODE_LOCATION_PERMISSION) {
-                // Location permission granted - retry pending geofence save
+                // Foreground location permission granted
+                Toast.makeText(this, "Location permission granted", Toast.LENGTH_SHORT).show();
+                
+                // If Android 10+, we'll need background permission next
+                // The saveGeofenceToBackend will handle that
+                if (pendingGeofence != null) {
+                    saveGeofenceToBackend(pendingGeofence);
+                    pendingGeofence = null;
+                }
+            } else if (requestCode == REQUEST_CODE_BACKGROUND_LOCATION_PERMISSION) {
+                // Background location permission granted
+                Toast.makeText(this, "Background location permission granted", Toast.LENGTH_SHORT).show();
+                
+                // Now we can register the geofence
                 if (pendingGeofence != null) {
                     saveGeofenceToBackend(pendingGeofence);
                     pendingGeofence = null;
                 }
             }
         } else {
+            // Permission denied
             if (requestCode == REQUEST_CODE_LOCATION_PERMISSION) {
                 Toast.makeText(this, R.string.permission_location_required, Toast.LENGTH_LONG).show();
                 pendingGeofence = null; // Clear pending geofence
+            } else if (requestCode == REQUEST_CODE_BACKGROUND_LOCATION_PERMISSION) {
+                Toast.makeText(this, 
+                    "Background location denied. Geofence will only work when app is open.", 
+                    Toast.LENGTH_LONG).show();
+                
+                // Still save to backend, just won't register on device for background
+                if (pendingGeofence != null) {
+                    saveGeofenceToBackendWithoutDeviceRegistration(pendingGeofence);
+                    pendingGeofence = null;
+                }
             } else {
                 String permissionType = "Permission";
                 if (requestCode == MediaHelper.REQUEST_CAMERA_PERMISSION) {
@@ -1099,10 +1444,11 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         android.util.Log.d("NoteEditor", "🚀 Attempting to save note: " + title);
         android.util.Log.d("NoteEditor", "📝 Is new note: " + isNewNote);
         android.util.Log.d("NoteEditor", "📋 Is template mode: " + isTemplateMode);
+        android.util.Log.d("NoteEditor", "📋 Editing template ID: " + editingTemplateId);
         
         if (isTemplateMode) {
-            // Create template instead of note
-            android.util.Log.d("NoteEditor", "📤 Calling createTemplate API...");
+            // Create or update template
+            android.util.Log.d("NoteEditor", "📤 Calling " + (editingTemplateId != null ? "updateTemplate" : "createTemplate") + " API...");
             
             // Convert Note to Template model
             com.example.anchornotes_team3.model.Template template = new com.example.anchornotes_team3.model.Template();
@@ -1113,20 +1459,39 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             template.setGeofence(currentNote.getGeofence());
             // Note: Attachments are not copied to templates - templates are blueprints for content
             
-            repository.createTemplate(template, new NoteRepository.TemplateCallback() {
-                @Override
-                public void onSuccess(com.example.anchornotes_team3.model.Template createdTemplate) {
-                    android.util.Log.d("NoteEditor", "✅ Template saved successfully! ID: " + createdTemplate.getId());
-                    Toast.makeText(NoteEditorActivity.this, "Template saved successfully", Toast.LENGTH_SHORT).show();
-                    finish();
-                }
-                
-                @Override
-                public void onError(String error) {
-                    android.util.Log.e("NoteEditor", "❌ Failed to save template: " + error);
-                    Toast.makeText(NoteEditorActivity.this, "Failed to save template: " + error, Toast.LENGTH_LONG).show();
-                }
-            });
+            if (editingTemplateId != null) {
+                // Update existing template
+                repository.updateTemplate(editingTemplateId, template, new NoteRepository.TemplateCallback() {
+                    @Override
+                    public void onSuccess(com.example.anchornotes_team3.model.Template updatedTemplate) {
+                        android.util.Log.d("NoteEditor", "✅ Template updated successfully! ID: " + updatedTemplate.getId());
+                        Toast.makeText(NoteEditorActivity.this, "Template updated successfully", Toast.LENGTH_SHORT).show();
+                        finish();
+                    }
+                    
+                    @Override
+                    public void onError(String error) {
+                        android.util.Log.e("NoteEditor", "❌ Failed to update template: " + error);
+                        Toast.makeText(NoteEditorActivity.this, "Failed to update template: " + error, Toast.LENGTH_LONG).show();
+                    }
+                });
+            } else {
+                // Create new template
+                repository.createTemplate(template, new NoteRepository.TemplateCallback() {
+                    @Override
+                    public void onSuccess(com.example.anchornotes_team3.model.Template createdTemplate) {
+                        android.util.Log.d("NoteEditor", "✅ Template saved successfully! ID: " + createdTemplate.getId());
+                        Toast.makeText(NoteEditorActivity.this, "Template saved successfully", Toast.LENGTH_SHORT).show();
+                        finish();
+                    }
+                    
+                    @Override
+                    public void onError(String error) {
+                        android.util.Log.e("NoteEditor", "❌ Failed to save template: " + error);
+                        Toast.makeText(NoteEditorActivity.this, "Failed to save template: " + error, Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
             return;
         }
         
@@ -1155,6 +1520,9 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                     int uploads = saveRemindersAndAttachments();
                     
                     Toast.makeText(NoteEditorActivity.this, R.string.note_saved, Toast.LENGTH_SHORT).show();
+                    
+                    // Update last saved state
+                    updateLastSavedState();
                     
                     // Only finish if no uploads are pending
                     if (uploads == 0) {
@@ -1197,7 +1565,10 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                     int uploads = saveRemindersAndAttachments();
 
                     Toast.makeText(NoteEditorActivity.this, R.string.note_saved, Toast.LENGTH_SHORT).show();
-
+                    
+                    // Update last saved state
+                    updateLastSavedState();
+                    
                     // Only finish if no uploads are pending
                     if (uploads == 0) {
                         finish();
@@ -1531,6 +1902,16 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     }
 
     @Override
+    public void onBackPressed() {
+        // Auto-save before going back
+        if (hasUnsavedChanges()) {
+            android.util.Log.d("NoteEditor", "🔙 Back pressed - auto-saving before exit");
+            autoSaveNote();
+        }
+        super.onBackPressed();
+    }
+    
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         // Clean up media player
@@ -1542,6 +1923,12 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         super.onPause();
         // Stop playback when activity is paused
         stopAudioPlayback();
+        
+        // Auto-save when leaving the activity (e.g., going to home screen or another app)
+        if (hasUnsavedChanges()) {
+            android.util.Log.d("NoteEditor", "⏸️ Pausing - auto-saving before background");
+            autoSaveNote();
+        }
     }
 }
 

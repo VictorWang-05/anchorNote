@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.anchornotes_team3.api.ApiClient;
 import com.example.anchornotes_team3.api.ApiService;
 import com.example.anchornotes_team3.auth.AuthManager;
+import com.example.anchornotes_team3.util.ThemeUtils;
 import com.example.anchornotes_team3.dto.AuthRequest;
 import com.example.anchornotes_team3.dto.AuthResponse;
 import com.google.android.material.button.MaterialButton;
@@ -38,7 +39,9 @@ public class LoginOnlyActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
+        // Apply saved theme as early as possible
+        ThemeUtils.applySavedTheme(this);
+
         // Initialize auth manager first
         authManager = AuthManager.getInstance(this);
         

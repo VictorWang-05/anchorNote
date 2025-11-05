@@ -64,6 +64,11 @@ public class TemplateActivity extends AppCompatActivity {
             public void onDeleteTemplate(Template template) {
                 confirmDeleteTemplate(template);
             }
+
+            @Override
+            public void onEditTemplate(Template template) {
+                editTemplate(template);
+            }
         });
         rvTemplates.setLayoutManager(new LinearLayoutManager(this));
         rvTemplates.setAdapter(templateAdapter);
@@ -115,6 +120,26 @@ public class TemplateActivity extends AppCompatActivity {
         // Open note editor in template mode instead of showing dialog
         Intent intent = new Intent(TemplateActivity.this, NoteEditorActivity.class);
         intent.putExtra("is_template_mode", true);
+        startActivity(intent);
+    }
+
+    private void editTemplate(Template template) {
+        if (template == null || template.getId() == null) {
+            Toast.makeText(this, "Invalid template", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Open note editor in template edit mode
+        Intent intent = new Intent(TemplateActivity.this, NoteEditorActivity.class);
+        intent.putExtra("is_template_mode", true);
+        intent.putExtra("template_id", template.getId());
+        intent.putExtra("template_name", template.getName());
+        intent.putExtra("template_text", template.getText());
+        intent.putExtra("template_pinned", template.getPinned() != null ? template.getPinned() : false);
+        
+        // Note: Tags and geofence are not passed via intent extras to keep it simple
+        // When editing, they will start empty, but user can add them
+        // The backend will update the template with whatever tags/geofence are in the request
         startActivity(intent);
     }
 

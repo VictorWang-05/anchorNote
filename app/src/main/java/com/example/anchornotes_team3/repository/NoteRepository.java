@@ -325,11 +325,11 @@ public class NoteRepository {
     /**
      * Filter notes by criteria
      */
-    public void filterNotes(List<String> tagIds, Boolean pinned, Boolean hasPhoto, Boolean hasAudio, NotesCallback callback) {
+    public void filterNotes(List<String> tagIds, Boolean pinned, Boolean hasPhoto, Boolean hasAudio, Boolean hasLocation, NotesCallback callback) {
         // Convert empty list to null for API call
         List<String> apiTagIds = (tagIds != null && !tagIds.isEmpty()) ? tagIds : null;
 
-        getApiService().filterNotes(apiTagIds, pinned, hasPhoto, hasAudio).enqueue(new Callback<SearchResponse>() {
+        getApiService().filterNotes(apiTagIds, pinned, hasPhoto, hasAudio, hasLocation).enqueue(new Callback<SearchResponse>() {
             @Override
             public void onResponse(@NonNull Call<SearchResponse> call, @NonNull Response<SearchResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -882,6 +882,59 @@ public class NoteRepository {
             public void onFailure(@NonNull Call<com.example.anchornotes_team3.dto.TemplateResponse> call,
                                 @NonNull Throwable t) {
                 Log.e(TAG, "❌ Network error creating template", t);
+                callback.onError("Network error: " + t.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Update an existing template
+     */
+    public void updateTemplate(String templateId, com.example.anchornotes_team3.model.Template template, TemplateCallback callback) {
+        Log.d(TAG, "📋 Updating template: " + templateId);
+        
+        // Convert template to request DTO
+        com.example.anchornotes_team3.dto.CreateTemplateRequest request = new com.example.anchornotes_team3.dto.CreateTemplateRequest();
+        request.setName(template.getName());
+        request.setText(template.getText());
+        request.setPinned(template.getPinned());
+        request.setGeofence(template.getGeofence());
+        
+        // Convert tag IDs from String to Long
+        if (template.getTags() != null && !template.getTags().isEmpty()) {
+            List<Long> tagIds = template.getTags().stream()
+                .map(tag -> {
+                    try {
+                        return Long.parseLong(tag.getId());
+                    } catch (NumberFormatException e) {
+                        Log.w(TAG, "Invalid tag ID format: " + tag.getId());
+                        return null;
+                    }
+                })
+                .filter(id -> id != null)
+                .collect(Collectors.toList());
+            request.setTagIds(tagIds);
+        }
+        
+        getApiService().updateTemplate(templateId, request).enqueue(new Callback<com.example.anchornotes_team3.dto.TemplateResponse>() {
+            @Override
+            public void onResponse(@NonNull Call<com.example.anchornotes_team3.dto.TemplateResponse> call,
+                                 @NonNull Response<com.example.anchornotes_team3.dto.TemplateResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    com.example.anchornotes_team3.model.Template updatedTemplate = mapToTemplate(response.body());
+                    Log.d(TAG, "✅ Template updated: " + updatedTemplate.getId());
+                    callback.onSuccess(updatedTemplate);
+                } else {
+                    String errorMsg = "Failed to update template: " + response.code();
+                    Log.e(TAG, "❌ " + errorMsg);
+                    callback.onError(errorMsg);
+                }
+            }
+            
+            @Override
+            public void onFailure(@NonNull Call<com.example.anchornotes_team3.dto.TemplateResponse> call,
+                                @NonNull Throwable t) {
+                Log.e(TAG, "❌ Network error updating template", t);
                 callback.onError("Network error: " + t.getMessage());
             }
         });

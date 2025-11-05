@@ -128,6 +128,10 @@ public class FilterResultsActivity extends AppCompatActivity {
             summaryParts.add("Has Audio");
         }
 
+        if (filterCriteria.getHasLocation() != null && filterCriteria.getHasLocation()) {
+            summaryParts.add("Has Location");
+        }
+
         String summary = String.join(", ", summaryParts);
         tvFilterSummary.setText(summary.isEmpty() ? "None" : summary);
     }
@@ -138,6 +142,7 @@ public class FilterResultsActivity extends AppCompatActivity {
                 null,
                 filterCriteria.getHasPhoto(),
                 filterCriteria.getHasAudio(),
+                filterCriteria.getHasLocation(),
                 new NoteRepository.NotesCallback() {
                     @Override
                     public void onSuccess(List<Note> notes) {

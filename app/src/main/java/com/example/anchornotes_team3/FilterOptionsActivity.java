@@ -29,6 +29,7 @@ public class FilterOptionsActivity extends AppCompatActivity {
     private TextView tvNoTags;
     private MaterialCheckBox checkboxHasPhoto;
     private MaterialCheckBox checkboxHasAudio;
+    private MaterialCheckBox checkboxHasLocation;
     private MaterialButton btnClearFilter;
     private MaterialButton btnApplyFilter;
 
@@ -54,6 +55,7 @@ public class FilterOptionsActivity extends AppCompatActivity {
         tvNoTags = findViewById(R.id.tv_no_tags);
         checkboxHasPhoto = findViewById(R.id.checkbox_has_photo);
         checkboxHasAudio = findViewById(R.id.checkbox_has_audio);
+        checkboxHasLocation = findViewById(R.id.checkbox_has_location);
         btnClearFilter = findViewById(R.id.btn_clear_filter);
         btnApplyFilter = findViewById(R.id.btn_apply_filter);
     }
@@ -155,6 +157,7 @@ public class FilterOptionsActivity extends AppCompatActivity {
 
         checkboxHasPhoto.setChecked(false);
         checkboxHasAudio.setChecked(false);
+        checkboxHasLocation.setChecked(false);
 
         Toast.makeText(this, "Filters cleared", Toast.LENGTH_SHORT).show();
     }
@@ -181,6 +184,10 @@ public class FilterOptionsActivity extends AppCompatActivity {
 
         if (checkboxHasAudio.isChecked()) {
             criteria.setHasAudio(true);
+        }
+
+        if (checkboxHasLocation.isChecked()) {
+            criteria.setHasLocation(true);
         }
 
         if (criteria.isEmpty()) {

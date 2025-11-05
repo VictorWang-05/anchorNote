@@ -115,7 +115,8 @@ public interface ApiService {
             @Query("tagIds") List<String> tagIds,
             @Query("pinned") Boolean pinned,
             @Query("hasPhoto") Boolean hasPhoto,
-            @Query("hasAudio") Boolean hasAudio
+            @Query("hasAudio") Boolean hasAudio,
+            @Query("hasLocation") Boolean hasLocation
     );
     
     // ==================== Templates ====================

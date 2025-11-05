@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark theme counterparts -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <color name="background_beige">#121212</color>
+    <color name="orange_primary">#FF8C42</color>
+    <color name="orange_dark">#FF9C5A</color>
+    <color name="note_card_beige">#1E1E1E</color>
+    <color name="text_dark">#FFFFFF</color>
+    <color name="text_secondary">#BBBBBB</color>
+    <color name="separator_orange">#FF8C42</color>
+
+    <color name="logout_red">#DC3545</color>
+    <color name="logout_red_dark">#E35D6A</color>
+
+    <color name="format_active">#3A3A3A</color>
+</resources>
+

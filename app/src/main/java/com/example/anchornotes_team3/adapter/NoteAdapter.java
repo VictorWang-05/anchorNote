@@ -66,6 +66,14 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
             notifyItemChanged(position);
         }
     }
+
+    /**
+     * Get note at adapter position (helper for swipe actions)
+     */
+    public Note getNoteAt(int position) {
+        if (position < 0 || position >= notes.size()) return null;
+        return notes.get(position);
+    }
     
     public void removeNote(String noteId) {
         int position = -1;

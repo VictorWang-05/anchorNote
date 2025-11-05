@@ -54,6 +54,17 @@ public class FormattingTextWatcher implements TextWatcher {
         return activeSizeScale != null;
     }
     
+    /**
+     * Reset the formatting state (used when loading new note content)
+     */
+    public void reset() {
+        isBoldActive = false;
+        isItalicActive = false;
+        activeSizeScale = null;
+        lastCursorPosition = 0;
+        textLengthBefore = 0;
+    }
+    
     @Override
     public void beforeTextChanged(CharSequence s, int start, int count, int after) {
         textLengthBefore = s.length();

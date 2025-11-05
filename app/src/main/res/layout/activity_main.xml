@@ -260,8 +260,21 @@
         android:layout_gravity="bottom|end"
         android:layout_marginBottom="80dp"
         android:layout_marginEnd="16dp"
-        android:src="@android:drawable/ic_menu_view"
+        android:src="@android:drawable/ic_menu_agenda"
         android:contentDescription="@string/create_template"
+        app:tint="@color/white"
+        app:backgroundTint="@color/orange_primary" />
+
+    <!-- Stats FAB (above template FAB) -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/statsFab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginBottom="144dp"
+        android:layout_marginEnd="16dp"
+        android:src="@android:drawable/ic_menu_info_details"
+        android:contentDescription="@string/view_stats"
         app:tint="@color/white"
         app:backgroundTint="@color/orange_primary" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
