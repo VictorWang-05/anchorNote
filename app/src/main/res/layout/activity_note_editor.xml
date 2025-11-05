@@ -57,13 +57,14 @@
                     app:chipStrokeWidth="1dp" />
             </com.google.android.material.chip.ChipGroup>
 
-            <!-- Row 2: Location + Reminder on its own line -->
+            <!-- Row 2: Location + Reminder (wraps if needed) -->
             <com.google.android.material.chip.ChipGroup
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 app:chipSpacingHorizontal="8dp"
-                app:singleLine="true">
+                app:chipSpacingVertical="4dp"
+                app:singleLine="false">
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chip_location"
