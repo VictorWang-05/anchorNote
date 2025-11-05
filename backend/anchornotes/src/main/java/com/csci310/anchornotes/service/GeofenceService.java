@@ -38,6 +38,7 @@ public class GeofenceService {
                         .latitude(note.getGeofence().getLatitude())
                         .longitude(note.getGeofence().getLongitude())
                         .radiusMeters(note.getGeofence().getRadius())
+                        .addressName(note.getGeofence().getAddressName())
                         .build())
                 .collect(Collectors.toList());
 

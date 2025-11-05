@@ -108,7 +108,10 @@ public interface ApiService {
     // ==================== Search & Filter ====================
 
     @GET("api/notes/search")
-    Call<SearchResponse> searchNotes(@Query("q") String query);
+    Call<SearchResponse> searchNotes(
+            @Query("q") String query,
+            @Query("location") String location
+    );
     
     @GET("api/notes/filter")
     Call<SearchResponse> filterNotes(

@@ -49,15 +49,21 @@ public interface NoteRepository extends JpaRepository<Note, Long> {
         @Param("noteIds") List<Long> noteIds
     );
 
-    // Simple search - only by title and content
-    @Query(value = "SELECT n.* FROM notes n " +
+    // Simple search - by title, content, and geofence address name
+    @Query(value = "SELECT DISTINCT n.* FROM notes n " +
+           "LEFT JOIN geofence g ON n.geofence = g.id " +
            "WHERE n.user_id = :userId " +
-           "AND (:query = '' OR LOWER(n.text) LIKE LOWER('%' || :query || '%') OR LOWER(n.title) LIKE LOWER('%' || :query || '%')) " +
+           "AND (:query = '' OR LOWER(n.text) LIKE LOWER('%' || :query || '%') " +
+           "     OR LOWER(n.title) LIKE LOWER('%' || :query || '%') " +
+           "     OR LOWER(g.address_name) LIKE LOWER('%' || :query || '%')) " +
            "ORDER BY n.last_edited DESC " +
            "/*#pageable*/",
-           countQuery = "SELECT COUNT(n.id) FROM notes n " +
+           countQuery = "SELECT COUNT(DISTINCT n.id) FROM notes n " +
+                       "LEFT JOIN geofence g ON n.geofence = g.id " +
                        "WHERE n.user_id = :userId " +
-                       "AND (:query = '' OR LOWER(n.text) LIKE LOWER('%' || :query || '%') OR LOWER(n.title) LIKE LOWER('%' || :query || '%'))",
+                       "AND (:query = '' OR LOWER(n.text) LIKE LOWER('%' || :query || '%') " +
+                       "     OR LOWER(n.title) LIKE LOWER('%' || :query || '%') " +
+                       "     OR LOWER(g.address_name) LIKE LOWER('%' || :query || '%'))",
            nativeQuery = true)
     Page<Note> searchNotes(
         @Param("userId") UUID userId,

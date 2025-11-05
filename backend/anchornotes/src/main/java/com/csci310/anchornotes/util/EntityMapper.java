@@ -75,6 +75,7 @@ public class EntityMapper {
                 .latitude(geofence.getLatitude())
                 .longitude(geofence.getLongitude())
                 .radius(geofence.getRadius())
+                .addressName(geofence.getAddressName())
                 .build();
     }
 

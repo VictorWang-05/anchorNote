@@ -53,6 +53,7 @@
     <string name="view_stats">View Stats</string>
     <string name="last_updated_fmt">Last updated: %1$s</string>
     <string name="recent_notes">Recent notes</string>
+    <string name="btn_checklist">Todo</string>
     <string name="appearance">Appearance</string>
     <string name="theme">Theme</string>
     <string name="theme_follow_system">Follow system</string>

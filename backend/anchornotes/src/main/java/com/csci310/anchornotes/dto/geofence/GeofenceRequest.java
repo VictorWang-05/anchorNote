@@ -21,4 +21,6 @@ public class GeofenceRequest {
     @NotNull(message = "Radius is required")
     @Positive(message = "Radius must be positive")
     private Integer radius;
+
+    private String addressName;
 }

@@ -9,30 +9,55 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
         android:text="@string/dialog_add_reminder_title"
-        android:textSize="20sp"
-        android:textStyle="bold"
         android:textColor="@color/text_dark"
-        android:layout_marginBottom="16dp" />
+        android:textSize="20sp"
+        android:textStyle="bold" />
 
     <!-- Time reminder section -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
         android:text="@string/dialog_reminder_date"
-        android:textSize="14sp"
         android:textColor="@color/text_dark"
-        android:layout_marginBottom="8dp" />
+        android:textSize="14sp" />
 
     <!-- Date and time will be set via DatePickerDialog and TimePickerDialog from code -->
     <TextView
         android:id="@+id/tv_selected_datetime"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="12dp"
         android:background="@android:drawable/edit_text"
-        android:textSize="16sp"
+        android:padding="12dp"
+        android:text="Tap to select date and time"
         android:textColor="@color/text_dark"
-        android:text="Tap to select date and time" />
+        android:textSize="16sp" />
+
+    <!-- Range selection (slider) -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Range (minutes)"
+        android:textColor="@color/text_dark"
+        android:textSize="14sp" />
+
+    <com.google.android.material.slider.Slider
+        android:id="@+id/slider_range"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:stepSize="5"
+        android:value="60" />
+
+    <TextView
+        android:id="@+id/tv_range_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="60 minutes"
+        android:textColor="@color/text_secondary" />
 </LinearLayout>
 

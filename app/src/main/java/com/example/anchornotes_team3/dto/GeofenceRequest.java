@@ -7,7 +7,7 @@ public class GeofenceRequest {
     private Double latitude;
     private Double longitude;
     private Integer radius;
-    private String address;
+    private String addressName;
 
     public GeofenceRequest(Double latitude, Double longitude, Integer radius) {
         this.latitude = latitude;
@@ -15,11 +15,11 @@ public class GeofenceRequest {
         this.radius = radius;
     }
 
-    public GeofenceRequest(Double latitude, Double longitude, Integer radius, String address) {
+    public GeofenceRequest(Double latitude, Double longitude, Integer radius, String addressName) {
         this.latitude = latitude;
         this.longitude = longitude;
         this.radius = radius;
-        this.address = address;
+        this.addressName = addressName;
     }
 
     public Double getLatitude() {
@@ -34,8 +34,8 @@ public class GeofenceRequest {
         return radius;
     }
 
-    public String getAddress() {
-        return address;
+    public String getAddressName() {
+        return addressName;
     }
 }
 

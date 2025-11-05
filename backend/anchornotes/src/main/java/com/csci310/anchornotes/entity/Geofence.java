@@ -38,6 +38,9 @@ public class Geofence {
     @Column(nullable = false)
     private Integer radius;
 
+    @Column(name = "address_name")
+    private String addressName;
+
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
 

@@ -36,6 +36,7 @@ public class SearchResultsActivity extends AppCompatActivity {
     private NoteAdapter searchAdapter;
     private NoteRepository noteRepository;
     private String searchQuery;
+    private boolean isInitialLoad = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -212,6 +213,13 @@ public class SearchResultsActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        performSearch();
+        // Skip search on initial load (already done in onCreate)
+        // But refresh on subsequent resumes (e.g., returning from NoteEditorActivity)
+        if (!isInitialLoad) {
+            Log.d(TAG, "Refreshing search results on resume");
+            performSearch();
+        } else {
+            isInitialLoad = false;
+        }
     }
 }

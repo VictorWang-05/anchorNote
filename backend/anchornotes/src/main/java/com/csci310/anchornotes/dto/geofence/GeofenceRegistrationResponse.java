@@ -14,4 +14,5 @@ public class GeofenceRegistrationResponse {
     private Double latitude;
     private Double longitude;
     private Integer radiusMeters;
+    private String addressName;
 }

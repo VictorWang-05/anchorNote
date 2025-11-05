@@ -10,9 +10,11 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.anchornotes_team3.auth.AuthManager;
 import com.example.anchornotes_team3.model.FilterCriteria;
 import com.example.anchornotes_team3.model.Tag;
 import com.example.anchornotes_team3.repository.NoteRepository;
+import com.example.anchornotes_team3.util.BottomNavigationHelper;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.checkbox.MaterialCheckBox;
@@ -34,6 +36,7 @@ public class FilterOptionsActivity extends AppCompatActivity {
     private MaterialButton btnApplyFilter;
 
     private NoteRepository noteRepository;
+    private AuthManager authManager;
     private List<Tag> availableTags = new ArrayList<>();
 
     @Override
@@ -42,11 +45,15 @@ public class FilterOptionsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_filter_options);
 
         noteRepository = NoteRepository.getInstance(this);
+        authManager = AuthManager.getInstance(this);
 
         initializeViews();
         setupToolbar();
         loadAvailableTags();
         setupClickListeners();
+
+        // Setup bottom navigation
+        BottomNavigationHelper.setupBottomNavigation(this, authManager);
     }
 
     private void initializeViews() {

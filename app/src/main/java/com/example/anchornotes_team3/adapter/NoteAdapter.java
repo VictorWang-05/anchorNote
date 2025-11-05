@@ -1,5 +1,6 @@
 package com.example.anchornotes_team3.adapter;
 
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,6 +11,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.anchornotes_team3.R;
 import com.example.anchornotes_team3.model.Note;
+import com.example.anchornotes_team3.model.Tag;
+import com.google.android.material.chip.ChipGroup;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -111,16 +114,18 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
     static class NoteViewHolder extends RecyclerView.ViewHolder {
         private final TextView noteTitle;
         private final TextView noteDate;
+        private final ChipGroup noteTags;
         private final com.google.android.material.button.MaterialButton addTagButton;
         private final com.google.android.material.button.MaterialButton deleteButton;
         private final com.google.android.material.button.MaterialButton pinButton;
         private final boolean isHorizontal;
-        
+
         public NoteViewHolder(@NonNull View itemView, boolean isHorizontal) {
             super(itemView);
             this.isHorizontal = isHorizontal;
             noteTitle = itemView.findViewById(R.id.noteTitle);
             noteDate = itemView.findViewById(R.id.noteDate);
+            noteTags = itemView.findViewById(R.id.noteTags);
             addTagButton = itemView.findViewById(R.id.addTagButton);
             deleteButton = itemView.findViewById(R.id.deleteButton);
             pinButton = itemView.findViewById(R.id.pinButton);
@@ -142,7 +147,44 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
             Instant dateInstant = note.getLastEdited() != null ? note.getLastEdited() : note.getCreatedAt();
             String dateText = formatDate(dateInstant);
             noteDate.setText(dateText != null ? dateText : "");
-            
+
+            // Set tags
+            if (noteTags != null) {
+                noteTags.removeAllViews();
+                if (note.getTags() != null && !note.getTags().isEmpty()) {
+                    noteTags.setVisibility(View.VISIBLE);
+                    for (Tag tag : note.getTags()) {
+                        // Create a circular colored dot for each tag
+                        View tagDot = new View(itemView.getContext());
+
+                        // Set size based on layout type
+                        int dotSize = isHorizontal ? 16 : 20; // Smaller for horizontal layout
+                        ViewGroup.MarginLayoutParams params = new ViewGroup.MarginLayoutParams(dotSize, dotSize);
+                        params.setMargins(0, 0, 8, 0); // Add spacing between dots
+                        tagDot.setLayoutParams(params);
+
+                        // Parse and set tag color
+                        try {
+                            int color = Color.parseColor(tag.getColor());
+                            android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
+                            drawable.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+                            drawable.setColor(color);
+                            tagDot.setBackground(drawable);
+                        } catch (Exception e) {
+                            // Fallback to default color if parsing fails
+                            android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
+                            drawable.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+                            drawable.setColor(itemView.getContext().getColor(R.color.orange_primary));
+                            tagDot.setBackground(drawable);
+                        }
+
+                        noteTags.addView(tagDot);
+                    }
+                } else {
+                    noteTags.setVisibility(View.GONE);
+                }
+            }
+
             // Set up add tag button - always visible on all layouts
             if (addTagButton != null) {
                 addTagButton.setVisibility(View.VISIBLE);

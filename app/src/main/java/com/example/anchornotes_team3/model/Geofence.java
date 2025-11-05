@@ -1,5 +1,7 @@
 package com.example.anchornotes_team3.model;
 
+import com.google.gson.annotations.SerializedName;
+
 /**
  * Model class representing a Geofence (location-based reminder)
  * Aligned with backend GeofenceResponse structure
@@ -9,7 +11,9 @@ public class Geofence {
     private Double latitude;
     private Double longitude;
     private Integer radius;  // In meters
-    private String address;  // Human-readable address for display
+    
+    @SerializedName("addressName")
+    private String addressName;  // Human-readable address for display
 
     public Geofence() {
     }
@@ -20,11 +24,11 @@ public class Geofence {
         this.radius = radius;
     }
 
-    public Geofence(Double latitude, Double longitude, Integer radius, String address) {
+    public Geofence(Double latitude, Double longitude, Integer radius, String addressName) {
         this.latitude = latitude;
         this.longitude = longitude;
         this.radius = radius;
-        this.address = address;
+        this.addressName = addressName;
     }
 
     // Getters and Setters
@@ -60,17 +64,17 @@ public class Geofence {
         this.radius = radius;
     }
 
-    public String getAddress() {
-        return address;
+    public String getAddressName() {
+        return addressName;
     }
 
-    public void setAddress(String address) {
-        this.address = address;
+    public void setAddressName(String addressName) {
+        this.addressName = addressName;
     }
 
     public String getDisplayText() {
-        if (address != null && !address.isEmpty()) {
-            return address + " (" + radius + "m)";
+        if (addressName != null && !addressName.isEmpty()) {
+            return addressName + " (" + radius + "m)";
         }
         return "Lat: " + latitude + ", Lng: " + longitude + " (" + radius + "m)";
     }

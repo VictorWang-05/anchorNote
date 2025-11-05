@@ -154,6 +154,15 @@ public class NoteRepository {
                     List<Note> notes = response.body().stream()
                             .map(NoteRepository.this::mapToNote)
                             .collect(Collectors.toList());
+                    
+                    // Log notes with geofences for debugging location search
+                    Log.d(TAG, "📥 Loaded " + notes.size() + " notes from backend");
+                    for (Note note : notes) {
+                        if (note.getGeofence() != null && note.getGeofence().getAddressName() != null) {
+                            Log.d(TAG, "  📍 Note '" + note.getTitle() + "' has geofence at: '" + note.getGeofence().getAddressName() + "'");
+                        }
+                    }
+                    
                     callback.onSuccess(notes);
                 } else {
                     callback.onError("Failed to load notes: " + response.code());
@@ -365,7 +374,7 @@ public class NoteRepository {
     }
 
     /**
-     * Search notes by query string
+     * Search notes by query string (searches content, title, tags, and address)
      */
     public void searchNotes(String query, NotesCallback callback) {
         if (query == null || query.trim().isEmpty()) {
@@ -373,21 +382,37 @@ public class NoteRepository {
             getAllNotes(callback);
             return;
         }
-
-        Log.d(TAG, "Searching notes with query: " + query);
-        getApiService().searchNotes(query).enqueue(new Callback<SearchResponse>() {
+        
+        Log.d(TAG, "🔍 Searching notes with query: '" + query + "'");
+        Log.d(TAG, "🔍 API call: GET /api/notes/search?q=" + query);
+        
+        // Only pass 'q' parameter for free-text search
+        // Backend should search across title, body, tags, and address fields
+        // Don't pass 'location' parameter - that would create an AND condition
+        getApiService().searchNotes(query, null).enqueue(new Callback<SearchResponse>() {
             @Override
             public void onResponse(@NonNull Call<SearchResponse> call, @NonNull Response<SearchResponse> response) {
+                Log.d(TAG, "🔍 Search response code: " + response.code());
+                
                 if (response.isSuccessful() && response.body() != null) {
                     SearchResponse searchResponse = response.body();
                     if (searchResponse.getItems() != null) {
                         List<Note> notes = searchResponse.getItems().stream()
                                 .map(NoteRepository.this::mapToNote)
                                 .collect(Collectors.toList());
-                        Log.d(TAG, "Found " + searchResponse.getTotal() + " notes matching query: " + query);
+                        Log.d(TAG, "✅ Found " + searchResponse.getTotal() + " notes matching query: '" + query + "'");
+                        
+                        // Log each note's title and location for debugging
+                        for (Note note : notes) {
+                            String location = note.getGeofence() != null && note.getGeofence().getAddressName() != null 
+                                ? note.getGeofence().getAddressName() 
+                                : "no location";
+                            Log.d(TAG, "  - Note: '" + note.getTitle() + "' at " + location);
+                        }
+                        
                         callback.onSuccess(notes);
                     } else {
-                        Log.e(TAG, "Search response items is null");
+                        Log.e(TAG, "❌ Search response items is null");
                         callback.onError("No results found");
                     }
                 } else {
@@ -395,6 +420,7 @@ public class NoteRepository {
                     try {
                         if (response.errorBody() != null) {
                             errorMsg = response.errorBody().string();
+                            Log.e(TAG, "❌ Error response body: " + errorMsg);
                         }
                     } catch (Exception e) {
                         Log.e(TAG, "Error reading error body", e);
@@ -509,16 +535,42 @@ public class NoteRepository {
                 geofence.getLatitude(),
                 geofence.getLongitude(),
                 geofence.getRadius(),
-                geofence.getAddress()
+                geofence.getAddressName()
         );
+        
+        // Log the request object as JSON
+        try {
+            com.google.gson.Gson gson = new com.google.gson.Gson();
+            String requestJson = gson.toJson(request);
+            Log.d(TAG, "📍 Saving geofence for note " + noteId);
+            Log.d(TAG, "📤 REQUEST JSON: " + requestJson);
+        } catch (Exception e) {
+            Log.e(TAG, "Error serializing request to JSON", e);
+        }
         
         getApiService().setGeofence(noteId, request).enqueue(new Callback<NoteResponse>() {
             @Override
             public void onResponse(@NonNull Call<NoteResponse> call, @NonNull Response<NoteResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    Note note = mapToNote(response.body());
+                    NoteResponse noteResponse = response.body();
+                    
+                    // Log the response geofence data
+                    if (noteResponse.getGeofence() != null) {
+                        try {
+                            com.google.gson.Gson gson = new com.google.gson.Gson();
+                            String responseJson = gson.toJson(noteResponse.getGeofence());
+                            Log.d(TAG, "📥 RESPONSE GEOFENCE JSON: " + responseJson);
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error serializing response to JSON", e);
+                        }
+                    } else {
+                        Log.w(TAG, "⚠️ Backend response has NULL geofence!");
+                    }
+                    
+                    Note note = mapToNote(noteResponse);
                     callback.onSuccess(note);
                 } else {
+                    Log.e(TAG, "❌ Failed to set geofence: " + response.code());
                     callback.onError("Failed to set geofence: " + response.code());
                 }
             }

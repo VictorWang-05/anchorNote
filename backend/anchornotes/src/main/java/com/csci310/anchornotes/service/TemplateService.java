@@ -81,6 +81,7 @@ public class TemplateService {
                     .latitude(request.getGeofence().getLatitude())
                     .longitude(request.getGeofence().getLongitude())
                     .radius(request.getGeofence().getRadius())
+                    .addressName(request.getGeofence().getAddressName())
                     .build());
             template.setGeofence(geofence);
         }
@@ -129,6 +130,7 @@ public class TemplateService {
                     .latitude(request.getGeofence().getLatitude())
                     .longitude(request.getGeofence().getLongitude())
                     .radius(request.getGeofence().getRadius())
+                    .addressName(request.getGeofence().getAddressName())
                     .build());
             template.setGeofence(geofence);
         }

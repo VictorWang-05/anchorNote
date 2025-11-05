@@ -7,10 +7,12 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.anchornotes_team3.auth.AuthManager;
 import com.example.anchornotes_team3.model.Note;
 import com.example.anchornotes_team3.model.Tag;
 import com.example.anchornotes_team3.repository.NoteRepository;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.example.anchornotes_team3.util.BottomNavigationHelper;
 import com.example.anchornotes_team3.util.ThemeUtils;
 import java.util.Comparator;
 
@@ -22,6 +24,7 @@ import java.util.Locale;
 public class StatisticsActivity extends AppCompatActivity {
 
     private NoteRepository repository;
+    private AuthManager authManager;
 
     private TextView tvTotalNotes;
     private TextView tvPinnedNotes;
@@ -41,12 +44,16 @@ public class StatisticsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_statistics);
 
         repository = NoteRepository.getInstance(this);
+        authManager = AuthManager.getInstance(this);
 
         // Back button
         android.view.View back = findViewById(R.id.btnBack);
         if (back != null) {
             back.setOnClickListener(v -> finish());
         }
+
+        // Setup bottom navigation
+        BottomNavigationHelper.setupBottomNavigation(this, authManager);
 
         tvLastUpdated = findViewById(R.id.lastUpdated);
         tvTotalNotes = findViewById(R.id.tvTotalNotes);

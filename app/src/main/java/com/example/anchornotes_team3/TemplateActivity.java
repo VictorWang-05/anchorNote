@@ -16,6 +16,7 @@ import com.example.anchornotes_team3.auth.AuthManager;
 import com.example.anchornotes_team3.model.Note;
 import com.example.anchornotes_team3.model.Template;
 import com.example.anchornotes_team3.repository.NoteRepository;
+import com.example.anchornotes_team3.util.BottomNavigationHelper;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
@@ -30,6 +31,7 @@ public class TemplateActivity extends AppCompatActivity {
     private FloatingActionButton fabCreateTemplate;
 
     private NoteRepository noteRepository;
+    private AuthManager authManager;
     private TemplateAdapter templateAdapter;
     private List<Template> templates;
 
@@ -40,6 +42,7 @@ public class TemplateActivity extends AppCompatActivity {
 
         // Initialize repositories
         noteRepository = NoteRepository.getInstance(this);
+        authManager = AuthManager.getInstance(this);
 
         // Initialize views
         toolbar = findViewById(R.id.toolbar);
@@ -50,6 +53,9 @@ public class TemplateActivity extends AppCompatActivity {
         // Set up toolbar
         setSupportActionBar(toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
+
+        // Setup bottom navigation
+        BottomNavigationHelper.setupBottomNavigation(this, authManager);
 
         // Initialize adapter
         templates = new ArrayList<>();

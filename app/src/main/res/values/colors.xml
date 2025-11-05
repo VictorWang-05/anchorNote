@@ -3,19 +3,24 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- Homescreen colors -->
-    <color name="background_beige">#FFF5E6</color>
-    <color name="orange_primary">#FF8C42</color>
-    <color name="orange_dark">#E6732A</color>
-    <color name="note_card_beige">#FFF9F0</color>
-    <color name="text_dark">#2C2C2C</color>
-    <color name="text_secondary">#666666</color>
-    <color name="separator_orange">#FF8C42</color>
-    
+    <!-- Apple Notes Style - Clean White Theme -->
+    <color name="background_beige">#FFFFFF</color>
+    <color name="orange_primary">#FFCC00</color>
+    <color name="orange_dark">#1C1C1E</color>
+    <color name="note_card_beige">#FFFFFF</color>
+    <color name="text_dark">#000000</color>
+    <color name="text_secondary">#8E8E93</color>
+    <color name="separator_orange">#E5E5EA</color>
+
     <!-- Account page colors -->
-    <color name="logout_red">#DC3545</color>
+    <color name="logout_red">#FF3B30</color>
     <color name="logout_red_dark">#C82333</color>
-    
+
     <!-- Formatting buttons -->
-    <color name="format_active">#FFD4A3</color>
+    <color name="format_active">#FFCC00</color>
+
+    <!-- Additional Apple-style colors -->
+    <color name="card_background">#F2F2F7</color>
+    <color name="divider_light">#E5E5EA</color>
+    <color name="accent_blue">#007AFF</color>
 </resources>

@@ -1,9 +1,12 @@
 package com.example.anchornotes_team3;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
+import android.location.Location;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -12,8 +15,12 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.common.api.Status;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -27,6 +34,7 @@ import com.google.android.libraries.places.api.model.Place;
 import com.google.android.libraries.places.widget.AutocompleteSupportFragment;
 import com.google.android.libraries.places.widget.listener.PlaceSelectionListener;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.slider.Slider;
 
 import java.io.IOException;
@@ -44,22 +52,26 @@ public class MapLocationPickerActivity extends AppCompatActivity implements OnMa
     public static final String EXTRA_LONGITUDE = "longitude";
     public static final String EXTRA_RADIUS = "radius";
     public static final String EXTRA_ADDRESS = "address";
-    
+
     private static final LatLng DEFAULT_LOCATION = new LatLng(34.0224, -118.2851); // USC
     private static final float DEFAULT_ZOOM = 15f;
     private static final int DEFAULT_RADIUS = 200;
-    
+    private static final int REQUEST_LOCATION_PERMISSION = 1001;
+
     private GoogleMap map;
     private Circle radiusCircle;
     private LatLng selectedLocation;
     private int currentRadius = DEFAULT_RADIUS;
     private String selectedAddress = "";
-    
+
     private Slider radiusSlider;
     private TextView tvRadiusValue;
     private TextView tvSelectedAddress;
     private MaterialButton btnConfirm;
     private MaterialButton btnCancel;
+    private FloatingActionButton fabCurrentLocation;
+
+    private FusedLocationProviderClient fusedLocationClient;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,13 +82,17 @@ public class MapLocationPickerActivity extends AppCompatActivity implements OnMa
         if (!Places.isInitialized()) {
             Places.initialize(getApplicationContext(), getString(R.string.google_maps_key));
         }
-        
+
+        // Initialize FusedLocationProviderClient
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
         // Initialize views
         radiusSlider = findViewById(R.id.slider_map_radius);
         tvRadiusValue = findViewById(R.id.tv_map_radius_value);
         tvSelectedAddress = findViewById(R.id.tv_selected_address);
         btnConfirm = findViewById(R.id.btn_confirm_location);
         btnCancel = findViewById(R.id.btn_cancel_location);
+        fabCurrentLocation = findViewById(R.id.fab_current_location);
         
         // Setup slider
         radiusSlider.setValueFrom(50);
@@ -94,6 +110,7 @@ public class MapLocationPickerActivity extends AppCompatActivity implements OnMa
         // Setup buttons
         btnConfirm.setOnClickListener(v -> confirmLocation());
         btnCancel.setOnClickListener(v -> finish());
+        fabCurrentLocation.setOnClickListener(v -> getCurrentLocation());
         
         // Setup map
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -252,16 +269,88 @@ public class MapLocationPickerActivity extends AppCompatActivity implements OnMa
             Toast.makeText(this, "Please select a location on the map", Toast.LENGTH_SHORT).show();
             return;
         }
-        
+
         // Return result
         Intent resultIntent = new Intent();
         resultIntent.putExtra(EXTRA_LATITUDE, selectedLocation.latitude);
         resultIntent.putExtra(EXTRA_LONGITUDE, selectedLocation.longitude);
         resultIntent.putExtra(EXTRA_RADIUS, currentRadius);
         resultIntent.putExtra(EXTRA_ADDRESS, selectedAddress);
-        
+
         setResult(RESULT_OK, resultIntent);
         finish();
+    }
+
+    /**
+     * Get the user's current location and set it as the selected location
+     */
+    private void getCurrentLocation() {
+        // Check if location permission is granted
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            // Request permission
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    REQUEST_LOCATION_PERMISSION);
+            return;
+        }
+
+        // Permission granted, get location
+        getLastKnownLocation();
+    }
+
+    /**
+     * Retrieve the last known location from FusedLocationProviderClient
+     */
+    private void getLastKnownLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        // Show loading message
+        Toast.makeText(this, "Getting current location...", Toast.LENGTH_SHORT).show();
+
+        fusedLocationClient.getLastLocation()
+                .addOnSuccessListener(this, location -> {
+                    if (location != null) {
+                        // Got last known location
+                        LatLng currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+                        selectedLocation = currentLatLng;
+                        updateMapLocation();
+                        reverseGeocode(currentLatLng);
+                        Toast.makeText(this, "Current location selected", Toast.LENGTH_SHORT).show();
+                        Log.d(TAG, "Current location: " + location.getLatitude() + ", " + location.getLongitude());
+                    } else {
+                        // Location not available, try to request fresh location
+                        Toast.makeText(this, "Unable to get current location. Please ensure location services are enabled.",
+                                Toast.LENGTH_LONG).show();
+                        Log.w(TAG, "Last known location is null");
+                    }
+                })
+                .addOnFailureListener(this, e -> {
+                    Toast.makeText(this, "Failed to get location: " + e.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Error getting location", e);
+                });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == REQUEST_LOCATION_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted, get location
+                getLastKnownLocation();
+            } else {
+                // Permission denied
+                Toast.makeText(this, "Location permission is required to use current location",
+                        Toast.LENGTH_SHORT).show();
+                Log.w(TAG, "Location permission denied");
+            }
+        }
     }
 }
 

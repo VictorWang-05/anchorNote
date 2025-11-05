@@ -13,11 +13,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import io.noties.markwon.Markwon;
-
 /**
  * Utility class to convert between Android Spanned text and Markdown format.
  * This allows formatted text (bold, italic, sizes) to be persisted in the database.
+ *
+ * Uses manual parsing instead of Markwon to avoid round-trip corruption issues.
  */
 public class MarkdownConverter {
 
@@ -58,23 +58,15 @@ public class MarkdownConverter {
         }
 
         String text = spanned.toString();
-        android.util.Log.d("MarkdownConverter", "📤 toMarkdown input text: " + text);
 
         List<SpanInfo> spans = extractSpans(spanned);
-        android.util.Log.d("MarkdownConverter", "🎨 Found " + spans.size() + " spans");
 
         if (spans.isEmpty()) {
             return text;
         }
 
-        // Log span details
-        for (SpanInfo span : spans) {
-            android.util.Log.d("MarkdownConverter", "  Span: " + span.type + " from " + span.start + " to " + span.end);
-        }
-
         // Merge overlapping spans of the same type to prevent duplicate markers
         spans = mergeOverlappingSpans(spans);
-        android.util.Log.d("MarkdownConverter", "🔗 After merge: " + spans.size() + " spans");
 
         // Sort spans by position
         Collections.sort(spans);
@@ -99,35 +91,57 @@ public class MarkdownConverter {
         }
 
         String result = markdown.toString();
-        android.util.Log.d("MarkdownConverter", "📤 toMarkdown output: " + result);
         return result;
     }
 
     /**
-     * Merge overlapping spans of the same type to prevent duplicate markdown markers
+     * Merge overlapping and adjacent spans of the same type to prevent duplicate markdown markers
+     * Also handles character-by-character spans created by FormattingTextWatcher
      */
     private static List<SpanInfo> mergeOverlappingSpans(List<SpanInfo> spans) {
         if (spans.isEmpty()) return spans;
 
-        List<SpanInfo> merged = new ArrayList<>();
-        Collections.sort(spans);
-
-        SpanInfo current = null;
-
-        for (SpanInfo span : spans) {
-            if (current == null) {
-                current = new SpanInfo(span.start, span.end, span.type);
-            } else if (current.type == span.type && span.start <= current.end) {
-                // Overlapping or adjacent spans of same type - merge them
-                current.end = Math.max(current.end, span.end);
-            } else {
-                // Different type or non-overlapping - add current and start new
-                merged.add(current);
-                current = new SpanInfo(span.start, span.end, span.type);
-            }
+        // Group spans by type for more effective merging
+        List<SpanInfo>[] spansByType = new List[SpanInfo.SpanType.values().length];
+        for (int i = 0; i < spansByType.length; i++) {
+            spansByType[i] = new ArrayList<>();
         }
 
-        if (current != null) {
+        for (SpanInfo span : spans) {
+            spansByType[span.type.ordinal()].add(span);
+        }
+
+        List<SpanInfo> merged = new ArrayList<>();
+
+        // Merge each type separately
+        for (List<SpanInfo> typeSpans : spansByType) {
+            if (typeSpans.isEmpty()) continue;
+
+            // Sort by start position
+            Collections.sort(typeSpans, (a, b) -> {
+                if (a.start != b.start) return Integer.compare(a.start, b.start);
+                return Integer.compare(a.end, b.end);
+            });
+
+            SpanInfo current = typeSpans.get(0);
+
+            for (int i = 1; i < typeSpans.size(); i++) {
+                SpanInfo next = typeSpans.get(i);
+
+                // Check if spans are adjacent or overlapping
+                // Adjacent means: current.end == next.start (no gap)
+                // Overlapping means: next.start < current.end
+                if (next.start <= current.end) {
+                    // Merge: extend current to include next
+                    current = new SpanInfo(current.start, Math.max(current.end, next.end), current.type);
+                } else {
+                    // Non-adjacent, save current and start new
+                    merged.add(current);
+                    current = next;
+                }
+            }
+
+            // Add the last span
             merged.add(current);
         }
 
@@ -136,13 +150,14 @@ public class MarkdownConverter {
 
     /**
      * Extract all formatting spans from Spanned text
-     * Handles both manually created spans (StyleSpan, RelativeSizeSpan)
-     * and Markwon-generated spans
+     * Handles StyleSpan (bold/italic) and RelativeSizeSpan (sizes)
+     * Splits spans at newline boundaries to prevent malformed markdown
      */
     private static List<SpanInfo> extractSpans(Spanned spanned) {
         List<SpanInfo> result = new ArrayList<>();
+        String text = spanned.toString();
 
-        // Get all spans to handle both manual and Markwon spans
+        // Get all spans
         Object[] allSpans = spanned.getSpans(0, spanned.length(), Object.class);
 
         for (Object span : allSpans) {
@@ -151,10 +166,9 @@ public class MarkdownConverter {
 
             if (start >= end) continue;
 
-            String spanClassName = span.getClass().getName();
             SpanInfo.SpanType type = null;
 
-            // Handle StyleSpan (manually created bold/italic)
+            // Handle StyleSpan (bold/italic)
             if (span instanceof StyleSpan) {
                 StyleSpan styleSpan = (StyleSpan) span;
                 switch (styleSpan.getStyle()) {
@@ -169,15 +183,7 @@ public class MarkdownConverter {
                         break;
                 }
             }
-            // Handle Markwon's StrongEmphasisSpan (bold from markdown **)
-            else if (spanClassName.contains("StrongEmphasisSpan")) {
-                type = SpanInfo.SpanType.BOLD;
-            }
-            // Handle Markwon's EmphasisSpan (italic from markdown *)
-            else if (spanClassName.contains("EmphasisSpan")) {
-                type = SpanInfo.SpanType.ITALIC;
-            }
-            // Handle RelativeSizeSpan (manually created sizes)
+            // Handle RelativeSizeSpan (sizes)
             else if (span instanceof RelativeSizeSpan) {
                 RelativeSizeSpan sizeSpan = (RelativeSizeSpan) span;
                 float size = sizeSpan.getSizeChange();
@@ -192,7 +198,21 @@ public class MarkdownConverter {
             }
 
             if (type != null) {
-                result.add(new SpanInfo(start, end, type));
+                // Split span at newline boundaries to prevent tags spanning multiple lines
+                int currentStart = start;
+                for (int i = start; i <= end; i++) {
+                    boolean isNewline = (i < end && text.charAt(i) == '\n');
+                    boolean isEnd = (i == end);
+                    
+                    if (isNewline || isEnd) {
+                        if (currentStart < i) {
+                            result.add(new SpanInfo(currentStart, i, type));
+                        }
+                        if (isNewline) {
+                            currentStart = i + 1; // Start after the newline
+                        }
+                    }
+                }
             }
         }
 
@@ -224,7 +244,14 @@ public class MarkdownConverter {
             if (this.isOpening != other.isOpening) {
                 return this.isOpening ? -1 : 1;
             }
-            return Integer.compare(this.priority, other.priority);
+            // For opening tags: lower priority first (size, then italic, then bold)
+            // For closing tags: REVERSE order (bold, then italic, then size)
+            // This ensures proper nesting: <small>**text**</small> not <small>**text</small>**
+            if (this.isOpening) {
+                return Integer.compare(this.priority, other.priority);
+            } else {
+                return Integer.compare(other.priority, this.priority); // Reversed!
+            }
         }
     }
 
@@ -277,135 +304,143 @@ public class MarkdownConverter {
 
     /**
      * Convert Markdown string to formatted Spanned text
+     * @param context Unused, kept for backward compatibility
+     * @param markdown The markdown string to parse
+     * @return Formatted Spanned text
      */
     public static Spanned fromMarkdown(Context context, String markdown) {
         if (markdown == null || markdown.isEmpty()) {
             return new SpannableStringBuilder("");
         }
 
-        android.util.Log.d("MarkdownConverter", "📥 fromMarkdown input: " + markdown);
-
-        // First, manually extract and track size tags since Markwon might not handle them
-        List<SizeTag> sizeTags = extractSizeTags(markdown);
-        android.util.Log.d("MarkdownConverter", "📏 Found " + sizeTags.size() + " size tags");
-
-        // Remove size tags from markdown for Markwon parsing
-        String cleanMarkdown = markdown.replaceAll("<small>|</small>|<big>|</big>", "");
-        android.util.Log.d("MarkdownConverter", "🧹 Clean markdown: " + cleanMarkdown);
-
-        // Create Markwon instance to handle bold/italic
-        Markwon markwon = Markwon.builder(context)
-                .build();
-
-        // Parse and render markdown to Spanned
-        SpannableStringBuilder builder = new SpannableStringBuilder(markwon.toMarkdown(cleanMarkdown));
-        android.util.Log.d("MarkdownConverter", "📝 After Markwon: " + builder.toString());
-
-        // Manually apply size spans based on extracted tags
-        applySizeTags(builder, sizeTags);
-        android.util.Log.d("MarkdownConverter", "✅ Final result: " + builder.toString());
-
+        // Parse markdown manually to avoid Markwon round-trip issues
+        SpannableStringBuilder builder = parseMarkdownManually(markdown);
         return builder;
     }
 
     /**
-     * Represents a size tag in the markdown
+     * Manually parse markdown to create a Spanned text
+     * This avoids round-trip corruption issues with Markwon
      */
-    private static class SizeTag {
-        int start;
-        int end;
-        boolean isSmall; // true for <small>, false for <big>
-
-        SizeTag(int start, int end, boolean isSmall) {
-            this.start = start;
-            this.end = end;
-            this.isSmall = isSmall;
-        }
+    private static SpannableStringBuilder parseMarkdownManually(String markdown) {
+        SpannableStringBuilder builder = new SpannableStringBuilder();
+        parseMarkdownRecursive(markdown, builder, 0);
+        return builder;
     }
 
     /**
-     * Extract size tags from markdown and calculate their positions in the clean text
+     * Recursively parse markdown and apply formatting
      */
-    private static List<SizeTag> extractSizeTags(String markdown) {
-        List<SizeTag> tags = new ArrayList<>();
-
-        // Build clean text and track positions simultaneously
-        StringBuilder cleanText = new StringBuilder();
-        int markdownPos = 0;
-
-        while (markdownPos < markdown.length()) {
-            int smallStart = markdown.indexOf("<small>", markdownPos);
-            int bigStart = markdown.indexOf("<big>", markdownPos);
-
-            // Find the next opening tag
-            int nextTagPos = -1;
-            boolean isSmall = false;
-            String openTag, closeTag;
-
-            if (smallStart >= 0 && (bigStart < 0 || smallStart < bigStart)) {
-                nextTagPos = smallStart;
-                isSmall = true;
-                openTag = "<small>";
-                closeTag = "</small>";
-            } else if (bigStart >= 0) {
-                nextTagPos = bigStart;
-                isSmall = false;
-                openTag = "<big>";
-                closeTag = "</big>";
-            } else {
-                // No more tags, append remaining text
-                cleanText.append(markdown.substring(markdownPos));
-                break;
+    private static int parseMarkdownRecursive(String markdown, SpannableStringBuilder builder, int pos) {
+        while (pos < markdown.length()) {
+            // Check for size tags
+            if (markdown.startsWith("<small>", pos)) {
+                int closePos = findClosingTag(markdown, pos + 7, "</small>");
+                if (closePos >= 0) {
+                    String content = markdown.substring(pos + 7, closePos);
+                    int startPos = builder.length();
+                    // Recursively parse the content inside <small>
+                    SpannableStringBuilder inner = new SpannableStringBuilder();
+                    parseMarkdownRecursive(content, inner, 0);
+                    builder.append(inner);
+                    builder.setSpan(new RelativeSizeSpan(0.8f), startPos, builder.length(),
+                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    pos = closePos + 8;  // 8 = length of "</small>"
+                    continue;
+                }
+            } else if (markdown.startsWith("<big>", pos)) {
+                int closePos = findClosingTag(markdown, pos + 5, "</big>");
+                if (closePos >= 0) {
+                    String content = markdown.substring(pos + 5, closePos);
+                    int startPos = builder.length();
+                    // Recursively parse the content inside <big>
+                    SpannableStringBuilder inner = new SpannableStringBuilder();
+                    parseMarkdownRecursive(content, inner, 0);
+                    builder.append(inner);
+                    builder.setSpan(new RelativeSizeSpan(1.3f), startPos, builder.length(),
+                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    pos = closePos + 6;  // 6 = length of "</big>"
+                    continue;
+                }
+            }
+            // Check for bold-italic ***
+            else if (markdown.startsWith("***", pos) && !markdown.startsWith("****", pos)) {
+                int closePos = findClosingMarker(markdown, pos + 3, "***");
+                if (closePos >= 0) {
+                    String content = markdown.substring(pos + 3, closePos);
+                    int startPos = builder.length();
+                    builder.append(content);
+                    builder.setSpan(new StyleSpan(Typeface.BOLD_ITALIC), startPos, builder.length(),
+                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    pos = closePos + 3;
+                    continue;
+                }
+            }
+            // Check for bold **
+            else if (markdown.startsWith("**", pos) && !markdown.startsWith("***", pos)) {
+                int closePos = findClosingMarker(markdown, pos + 2, "**");
+                if (closePos >= 0) {
+                    String content = markdown.substring(pos + 2, closePos);
+                    int startPos = builder.length();
+                    // Recursively parse content inside ** (e.g., for nested italic)
+                    SpannableStringBuilder inner = new SpannableStringBuilder();
+                    parseMarkdownRecursive(content, inner, 0);
+                    builder.append(inner);
+                    builder.setSpan(new StyleSpan(Typeface.BOLD), startPos, builder.length(),
+                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    pos = closePos + 2;
+                    continue;
+                }
+            }
+            // Check for italic *
+            else if (markdown.startsWith("*", pos) && !markdown.startsWith("**", pos)) {
+                int closePos = findClosingMarker(markdown, pos + 1, "*");
+                if (closePos >= 0) {
+                    String content = markdown.substring(pos + 1, closePos);
+                    int startPos = builder.length();
+                    builder.append(content);
+                    builder.setSpan(new StyleSpan(Typeface.ITALIC), startPos, builder.length(),
+                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    pos = closePos + 1;
+                    continue;
+                }
             }
 
-            // Append text before the tag
-            cleanText.append(markdown.substring(markdownPos, nextTagPos));
-
-            // Find closing tag
-            int closeTagPos = markdown.indexOf(closeTag, nextTagPos + openTag.length());
-
-            if (closeTagPos < 0) {
-                // No closing tag, treat opening tag as plain text
-                cleanText.append(markdown.substring(nextTagPos));
-                break;
-            }
-
-            // Record the position in clean text
-            int contentStart = cleanText.length();
-
-            // Extract and append the content between tags
-            String content = markdown.substring(nextTagPos + openTag.length(), closeTagPos);
-            cleanText.append(content);
-
-            int contentEnd = cleanText.length();
-
-            // Add the size tag
-            tags.add(new SizeTag(contentStart, contentEnd, isSmall));
-
-            // Move past the closing tag
-            markdownPos = closeTagPos + closeTag.length();
+            // Regular character
+            builder.append(markdown.charAt(pos));
+            pos++;
         }
 
-        return tags;
+        return pos;
     }
 
     /**
-     * Apply size spans to the builder based on extracted tags
+     * Find the closing tag (for <small> and <big>)
      */
-    private static void applySizeTags(SpannableStringBuilder builder, List<SizeTag> tags) {
-        for (SizeTag tag : tags) {
-            android.util.Log.d("MarkdownConverter", "📏 Applying size tag: " + (tag.isSmall ? "small" : "big")
-                    + " from " + tag.start + " to " + tag.end + " (text length: " + builder.length() + ")");
+    private static int findClosingTag(String text, int start, String closeTag) {
+        return text.indexOf(closeTag, start);
+    }
 
-            if (tag.start >= 0 && tag.end <= builder.length() && tag.start < tag.end) {
-                float scale = tag.isSmall ? 0.8f : 1.3f;
-                builder.setSpan(new RelativeSizeSpan(scale), tag.start, tag.end,
-                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                android.util.Log.d("MarkdownConverter", "✅ Applied size span successfully");
-            } else {
-                android.util.Log.w("MarkdownConverter", "⚠️ Invalid size tag range, skipping");
+    /**
+     * Find the closing marker for a formatting tag (* or **)
+     */
+    private static int findClosingMarker(String text, int start, String marker) {
+        int pos = text.indexOf(marker, start);
+        // Make sure we don't match a longer marker (e.g., *** when looking for **)
+        while (pos >= 0) {
+            if (marker.equals("*") && pos + 1 < text.length() && text.charAt(pos + 1) == '*') {
+                // This is ** or ***, not a single *
+                pos = text.indexOf(marker, pos + 1);
+                continue;
             }
+            if (marker.equals("**") && pos + 2 < text.length() && text.charAt(pos + 2) == '*') {
+                // This is ***, not **
+                pos = text.indexOf(marker, pos + 1);
+                continue;
+            }
+            return pos;
         }
+        return -1;
     }
 
 }

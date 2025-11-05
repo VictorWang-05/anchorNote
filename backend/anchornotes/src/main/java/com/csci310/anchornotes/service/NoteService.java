@@ -411,6 +411,7 @@ public class NoteService {
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
                 .radius(request.getRadius())
+                .addressName(request.getAddressName())
                 .build());
     }
 

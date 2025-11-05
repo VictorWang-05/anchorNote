@@ -359,6 +359,23 @@
                                 <option value="true">Yes</option>
                             </select>
                         </div>
+                        <h3>Geofence (Optional)</h3>
+                        <div class="form-group">
+                            <label>Latitude:</label>
+                            <input type="number" step="0.000001" id="noteGeoLat" placeholder="34.0211">
+                        </div>
+                        <div class="form-group">
+                            <label>Longitude:</label>
+                            <input type="number" step="0.000001" id="noteGeoLng" placeholder="-118.2893">
+                        </div>
+                        <div class="form-group">
+                            <label>Radius (meters):</label>
+                            <input type="number" id="noteGeoRadius" placeholder="150">
+                        </div>
+                        <div class="form-group">
+                            <label>Address Name:</label>
+                            <input type="text" id="noteGeoAddress" placeholder="Coffee Shop on Main St">
+                        </div>
                         <button type="submit">Create Note</button>
                     </form>
                     <div id="createNoteResponse" class="response hidden"></div>
@@ -465,7 +482,7 @@
                 <div class="card">
                     <h2><span class="endpoint-badge get">GET</span>Search Notes (Keyword)</h2>
                     <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
-                        Searches by keyword in title and content only
+                        Searches by keyword in title, content, and geofence address name
                     </p>
                     <form onsubmit="searchNotes(event)">
                         <div class="form-group">
@@ -609,6 +626,10 @@
                         <div class="form-group">
                             <label>Radius (meters):</label>
                             <input type="number" id="geoRadius" value="150" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Address Name (optional):</label>
+                            <input type="text" id="geoAddress" placeholder="Coffee Shop on Main St">
                         </div>
                         <button type="submit">Set Geofence Reminder</button>
                     </form>
@@ -874,6 +895,23 @@
                             <label>Tag IDs (comma-separated, optional):</label>
                             <input type="text" id="templateTags" placeholder="1,2">
                         </div>
+                        <h3>Geofence (Optional)</h3>
+                        <div class="form-group">
+                            <label>Latitude:</label>
+                            <input type="number" step="0.000001" id="templateGeoLat" placeholder="34.0211">
+                        </div>
+                        <div class="form-group">
+                            <label>Longitude:</label>
+                            <input type="number" step="0.000001" id="templateGeoLng" placeholder="-118.2893">
+                        </div>
+                        <div class="form-group">
+                            <label>Radius (meters):</label>
+                            <input type="number" id="templateGeoRadius" placeholder="150">
+                        </div>
+                        <div class="form-group">
+                            <label>Address Name:</label>
+                            <input type="text" id="templateGeoAddress" placeholder="Coffee Shop on Main St">
+                        </div>
                         <button type="submit">Create Template</button>
                     </form>
                     <div id="createTemplateResponse" class="response hidden"></div>
@@ -893,6 +931,23 @@
                         <div class="form-group">
                             <label>Text:</label>
                             <textarea id="updateTemplateText" rows="3" placeholder="Updated content..."></textarea>
+                        </div>
+                        <h3>Geofence (Optional)</h3>
+                        <div class="form-group">
+                            <label>Latitude:</label>
+                            <input type="number" step="0.000001" id="updateTemplateGeoLat" placeholder="34.0211">
+                        </div>
+                        <div class="form-group">
+                            <label>Longitude:</label>
+                            <input type="number" step="0.000001" id="updateTemplateGeoLng" placeholder="-118.2893">
+                        </div>
+                        <div class="form-group">
+                            <label>Radius (meters):</label>
+                            <input type="number" id="updateTemplateGeoRadius" placeholder="150">
+                        </div>
+                        <div class="form-group">
+                            <label>Address Name:</label>
+                            <input type="text" id="updateTemplateGeoAddress" placeholder="Coffee Shop on Main St">
                         </div>
                         <button type="submit">Update Template</button>
                     </form>
@@ -1087,11 +1142,29 @@
         // NOTES ENDPOINTS
         async function createNote(e) {
             e.preventDefault();
-            const result = await apiRequest('/api/notes', 'POST', {
+            const body = {
                 title: document.getElementById('noteTitle').value,
                 text: document.getElementById('noteText').value,
                 pinned: document.getElementById('notePinned').value === 'true'
-            });
+            };
+            
+            // Add geofence if provided
+            const geoLat = document.getElementById('noteGeoLat').value;
+            const geoLng = document.getElementById('noteGeoLng').value;
+            const geoRadius = document.getElementById('noteGeoRadius').value;
+            if (geoLat && geoLng && geoRadius) {
+                body.geofence = {
+                    latitude: parseFloat(geoLat),
+                    longitude: parseFloat(geoLng),
+                    radius: parseInt(geoRadius)
+                };
+                const geoAddress = document.getElementById('noteGeoAddress').value.trim();
+                if (geoAddress) {
+                    body.geofence.addressName = geoAddress;
+                }
+            }
+            
+            const result = await apiRequest('/api/notes', 'POST', body);
             displayResponse('createNoteResponse', result);
         }
 
@@ -1225,11 +1298,16 @@
         async function setGeofenceReminder(e) {
             e.preventDefault();
             const noteId = document.getElementById('geoReminderNoteId').value;
-            const result = await apiRequest(`/api/notes/${noteId}/reminder/geofence`, 'PUT', {
+            const body = {
                 latitude: parseFloat(document.getElementById('geoLat').value),
                 longitude: parseFloat(document.getElementById('geoLng').value),
                 radius: parseInt(document.getElementById('geoRadius').value)
-            });
+            };
+            const addressName = document.getElementById('geoAddress').value.trim();
+            if (addressName) {
+                body.addressName = addressName;
+            }
+            const result = await apiRequest(`/api/notes/${noteId}/reminder/geofence`, 'PUT', body);
             displayResponse('geoReminderResponse', result);
         }
 
@@ -1477,6 +1555,22 @@
                 body.tagIds = tags.split(',').map(id => parseInt(id.trim()));
             }
 
+            // Add geofence if provided
+            const geoLat = document.getElementById('templateGeoLat').value;
+            const geoLng = document.getElementById('templateGeoLng').value;
+            const geoRadius = document.getElementById('templateGeoRadius').value;
+            if (geoLat && geoLng && geoRadius) {
+                body.geofence = {
+                    latitude: parseFloat(geoLat),
+                    longitude: parseFloat(geoLng),
+                    radius: parseInt(geoRadius)
+                };
+                const geoAddress = document.getElementById('templateGeoAddress').value.trim();
+                if (geoAddress) {
+                    body.geofence.addressName = geoAddress;
+                }
+            }
+
             const result = await apiRequest('/api/templates', 'POST', body);
             displayResponse('createTemplateResponse', result);
         }
@@ -1491,6 +1585,22 @@
 
             if (name) body.name = name;
             if (text) body.text = text;
+
+            // Add geofence if provided
+            const geoLat = document.getElementById('updateTemplateGeoLat').value;
+            const geoLng = document.getElementById('updateTemplateGeoLng').value;
+            const geoRadius = document.getElementById('updateTemplateGeoRadius').value;
+            if (geoLat && geoLng && geoRadius) {
+                body.geofence = {
+                    latitude: parseFloat(geoLat),
+                    longitude: parseFloat(geoLng),
+                    radius: parseInt(geoRadius)
+                };
+                const geoAddress = document.getElementById('updateTemplateGeoAddress').value.trim();
+                if (geoAddress) {
+                    body.geofence.addressName = geoAddress;
+                }
+            }
 
             const result = await apiRequest(`/api/templates/${templateId}`, 'PUT', body);
             displayResponse('updateTemplateResponse', result);

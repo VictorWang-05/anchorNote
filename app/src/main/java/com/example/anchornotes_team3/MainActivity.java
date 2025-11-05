@@ -52,11 +52,14 @@ public class MainActivity extends AppCompatActivity {
     // UI elements
     private MaterialButton loginButton;
     private TextView usernameDisplay;
+    private TextView avatarText;
     private MaterialButton newNoteButton;
     private com.google.android.material.textfield.TextInputLayout searchInputLayout;
     private com.google.android.material.textfield.TextInputEditText searchEditText;
-    private com.google.android.material.floatingactionbutton.FloatingActionButton filterFab;
-    private com.google.android.material.floatingactionbutton.FloatingActionButton templateFab;
+    private View navHome;
+    private View navFilter;
+    private View navTemplates;
+    private View navStats;
     
     // RecyclerViews
     private RecyclerView pinnedRecyclerView;
@@ -112,12 +115,15 @@ public class MainActivity extends AppCompatActivity {
         // Find UI elements
         loginButton = findViewById(R.id.loginButton);
         usernameDisplay = findViewById(R.id.usernameDisplay);
+        avatarText = findViewById(R.id.avatarText);
         newNoteButton = findViewById(R.id.newNoteButton);
         searchInputLayout = findViewById(R.id.searchInputLayout);
         searchEditText = findViewById(R.id.searchEditText);
-        filterFab = findViewById(R.id.filterFab);
-        templateFab = findViewById(R.id.templateFab);
-        
+        navHome = findViewById(R.id.nav_home);
+        navFilter = findViewById(R.id.nav_filter);
+        navTemplates = findViewById(R.id.nav_templates);
+        navStats = findViewById(R.id.nav_stats);
+
         // Find RecyclerViews
         pinnedRecyclerView = findViewById(R.id.pinnedRecyclerView);
         relevantRecyclerView = findViewById(R.id.relevantNotesRecyclerView);
@@ -275,8 +281,8 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        // Username display click (navigate to account page)
-        usernameDisplay.setOnClickListener(v -> {
+        // Avatar click (navigate to account page)
+        avatarText.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, AccountActivity.class);
             startActivity(intent);
         });
@@ -293,8 +299,17 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Filter FAB click
-        filterFab.setOnClickListener(v -> {
+        // Bottom Navigation click listeners
+        navHome.setOnClickListener(v -> {
+            // Scroll to top when on home page
+            androidx.core.widget.NestedScrollView scrollView = (androidx.core.widget.NestedScrollView)
+                ((android.view.ViewGroup) findViewById(R.id.main)).getChildAt(0);
+            if (scrollView != null) {
+                scrollView.smoothScrollTo(0, 0);
+            }
+        });
+
+        navFilter.setOnClickListener(v -> {
             if (authManager.isLoggedIn()) {
                 Intent intent = new Intent(MainActivity.this, FilterOptionsActivity.class);
                 startActivity(intent);
@@ -303,8 +318,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Template FAB click
-        templateFab.setOnClickListener(v -> {
+        navTemplates.setOnClickListener(v -> {
             if (authManager.isLoggedIn()) {
                 Intent intent = new Intent(MainActivity.this, TemplateActivity.class);
                 startActivity(intent);
@@ -315,9 +329,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Stats FAB click
-        com.google.android.material.floatingactionbutton.FloatingActionButton statsFab = findViewById(R.id.statsFab);
-        statsFab.setOnClickListener(v -> {
+        navStats.setOnClickListener(v -> {
             try {
                 if (authManager.isLoggedIn()) {
                     Intent intent = new Intent(MainActivity.this, StatisticsActivity.class);
@@ -383,15 +395,25 @@ public class MainActivity extends AppCompatActivity {
     
     private void updateLoginUI() {
         if (authManager.isLoggedIn()) {
-            // User is logged in - show username
+            // User is logged in - show username and avatar
             String username = authManager.getUsername();
+            String displayName = username != null ? username : "User";
             loginButton.setVisibility(View.GONE);
             usernameDisplay.setVisibility(View.VISIBLE);
-            usernameDisplay.setText(username != null ? username : "User");
+            usernameDisplay.setText(displayName);
+
+            // Set avatar initial
+            if (avatarText != null) {
+                String initial = displayName.length() > 0 ? displayName.substring(0, 1).toUpperCase() : "U";
+                avatarText.setText(initial);
+            }
         } else {
             // User is not logged in - show login button
             loginButton.setVisibility(View.VISIBLE);
             usernameDisplay.setVisibility(View.GONE);
+            if (avatarText != null) {
+                avatarText.setText("?");
+            }
             // Clear notes when logged out
             clearAllNotes();
         }
@@ -429,6 +451,7 @@ public class MainActivity extends AppCompatActivity {
                 isLoadingNotes = false;
                 notesLoaded = true;
                 Log.d(TAG, "✅ Loaded " + notes.size() + " notes");
+                evaluateTimeRelevantNotes(notes);
                 updateNoteLists(notes);
             }
             
@@ -450,6 +473,48 @@ public class MainActivity extends AppCompatActivity {
                 clearAllNotes();
             }
         });
+    }
+
+    /**
+     * Mark notes as relevant when current time is within ±1 hour of their reminder time.
+     * Adds with a timeout that auto-removes after +1h from reminder time.
+     */
+    private void evaluateTimeRelevantNotes(List<Note> notes) {
+        try {
+            relevantNotesStore.clearExpired();
+            long now = System.currentTimeMillis();
+            final long ONE_MIN = 60L * 1000L;
+
+            for (Note n : notes) {
+                if (n == null || n.getId() == null) continue;
+                java.time.Instant rt = n.getReminderTime();
+                if (rt == null) {
+                    // If reminder cleared and note was time-relevant, remove it (geofence handled separately)
+                    if (relevantNotesStore.isRelevant(n.getId()) && !n.hasGeofence()) {
+                        relevantNotesStore.removeRelevantNote(n.getId());
+                    }
+                    continue;
+                }
+
+                long reminder = rt.toEpochMilli();
+                int rangeMin = com.example.anchornotes_team3.store.TimeRangeStore.getInstance(this)
+                        .getRangeMinutes(n.getId());
+                long rangeMillis = Math.max(1, rangeMin) * ONE_MIN;
+                long diff = Math.abs(reminder - now);
+                if (diff <= rangeMillis) {
+                    long windowEnd = reminder + rangeMillis;
+                    long duration = Math.max(0, windowEnd - now);
+                    relevantNotesStore.addRelevantNoteWithTimeout(n.getId(), duration);
+                } else {
+                    // Outside window: remove if present
+                    if (relevantNotesStore.isRelevant(n.getId()) && !n.hasGeofence()) {
+                        relevantNotesStore.removeRelevantNote(n.getId());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error evaluating time relevant notes", e);
+        }
     }
     
     private void updateNoteLists(List<Note> allNotes) {

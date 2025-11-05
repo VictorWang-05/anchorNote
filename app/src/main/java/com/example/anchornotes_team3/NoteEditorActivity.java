@@ -10,9 +10,14 @@ import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
+import android.text.Editable;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.MotionEvent;
+import android.content.res.ColorStateList;
+import android.text.Spanned;
+import android.text.style.RelativeSizeSpan;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -84,6 +89,9 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private MaterialButton btnSizeLarge;
     private MaterialButton btnAddPhoto;
     private MaterialButton btnAddAudio;
+    private MaterialButton btnChecklist;
+    private boolean checklistMode = false;
+    private static final float CHECK_BULLET_SCALE = 1.4f;
     private LinearLayout formattingBar; // Reference to formatting bar container
     private androidx.core.widget.NestedScrollView nestedScrollView; // Reference to scroll view
 
@@ -231,6 +239,83 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         }
     }
 
+    private void ensureUncheckedBulletAtLineStart() {
+        if (etBody == null) return;
+        Editable e = etBody.getText();
+        if (e == null) return;
+
+        int cursor = etBody.getSelectionStart();
+        int lineStart = Math.max(0, e.toString().lastIndexOf('\n', Math.max(0, cursor - 1)) + 1);
+        int prefixMax = Math.min(lineStart + 4, e.length());
+        String existingPrefix = e.subSequence(lineStart, prefixMax).toString();
+
+        String uncheckedCirc = "\u25CB ";
+        String checkedCirc = "\u25CF ";
+
+        // If already has a modern or legacy prefix, do nothing
+        if (existingPrefix.startsWith(uncheckedCirc) || existingPrefix.startsWith(checkedCirc)
+                || existingPrefix.startsWith("- [ ] ") || existingPrefix.startsWith("- [x] ")) {
+            return;
+        }
+
+        try {
+            etBody.removeTextChangedListener(formattingTextWatcher);
+            e.insert(lineStart, uncheckedCirc);
+            applyBulletSpan(e, lineStart);
+            etBody.setSelection(Math.min(cursor + uncheckedCirc.length(), e.length()));
+        } finally {
+            etBody.addTextChangedListener(formattingTextWatcher);
+        }
+    }
+
+    private void applyBulletSpan(Editable e, int bulletStart) {
+        if (e == null) return;
+        int end = Math.min(bulletStart + 1, e.length());
+        if (bulletStart < 0 || bulletStart >= end) return;
+        // Clear any existing size spans on the bullet
+        RelativeSizeSpan[] spans = e.getSpans(bulletStart, end, RelativeSizeSpan.class);
+        for (RelativeSizeSpan span : spans) {
+            e.removeSpan(span);
+        }
+        e.setSpan(new RelativeSizeSpan(CHECK_BULLET_SCALE), bulletStart, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    }
+
+    private void applyBulletSpansForWholeText() {
+        Editable e = etBody.getText();
+        if (e == null || e.length() == 0) return;
+        // Remove previous bullet-size spans
+        RelativeSizeSpan[] spans = e.getSpans(0, e.length(), RelativeSizeSpan.class);
+        for (RelativeSizeSpan span : spans) {
+            try {
+                float scale = span.getSizeChange();
+                if (Math.abs(scale - CHECK_BULLET_SCALE) < 0.05f) {
+                    e.removeSpan(span);
+                }
+            } catch (Throwable ignored) {}
+        }
+        // Re-apply to all bullets at line starts
+        for (int i = 0; i < e.length(); i++) {
+            char c = e.charAt(i);
+            if ((c == '\u25CB' || c == '\u25CF') && (i == 0 || e.charAt(i - 1) == '\n')) {
+                int end = Math.min(i + 1, e.length());
+                e.setSpan(new RelativeSizeSpan(CHECK_BULLET_SCALE), i, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+        }
+    }
+
+    private void updateChecklistButtonAppearance() {
+        if (btnChecklist == null) return;
+        if (checklistMode) {
+            // ON: colored container with white icon
+            btnChecklist.setBackgroundTintList(ColorStateList.valueOf(getColor(R.color.format_active)));
+            btnChecklist.setIconTint(ColorStateList.valueOf(getColor(android.R.color.white)));
+        } else {
+            // OFF: transparent container with orange icon
+            btnChecklist.setBackgroundTintList(ColorStateList.valueOf(getColor(android.R.color.transparent)));
+            btnChecklist.setIconTint(ColorStateList.valueOf(getColor(R.color.orange_primary)));
+        }
+    }
+
     private void initializeViews() {
         toolbar = findViewById(R.id.toolbar);
         etTitle = findViewById(R.id.et_title);
@@ -249,8 +334,16 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         btnSizeLarge = findViewById(R.id.btn_size_large);
         btnAddPhoto = findViewById(R.id.btn_add_photo);
         btnAddAudio = findViewById(R.id.btn_add_audio);
+        btnChecklist = findViewById(R.id.btn_checklist);
         formattingBar = findViewById(R.id.formatting_bar);
         nestedScrollView = findViewById(R.id.nested_scroll_view);
+
+        // Ensure checklist button starts in OFF appearance (transparent background, not checkable)
+        if (btnChecklist != null) {
+            btnChecklist.setCheckable(false);
+            btnChecklist.setChecked(false);
+            updateChecklistButtonAppearance();
+        }
     }
 
     /**
@@ -357,6 +450,44 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             @Override
             public void afterTextChanged(android.text.Editable s) {}
         });
+
+        // Auto-continue checklist items when pressing Enter
+        etBody.addTextChangedListener(new android.text.TextWatcher() {
+            private boolean internalChange = false;
+
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (internalChange) return;
+                if (count == 1 && before == 0) {
+                    char ch = s.charAt(start);
+                    if (ch == '\n') {
+                        int prevLineStart = start > 0 ? s.toString().lastIndexOf('\n', Math.max(0, start - 1)) + 1 : 0;
+                        int prevPrefixEnd = Math.min(prevLineStart + 4, s.length());
+                        String prevPrefix = s.subSequence(prevLineStart, prevPrefixEnd).toString();
+                        // Only auto-insert bullets when checklist mode is ON
+                        String toInsert = checklistMode ? "\u25CB " : null;
+                        if (toInsert != null) {
+                            internalChange = true;
+                            try {
+                                etBody.removeTextChangedListener(formattingTextWatcher);
+                                Editable e = etBody.getText();
+                                if (e != null) {
+                                    e.insert(start + 1, toInsert);
+                                    applyBulletSpan(e, start + 1);
+                                    etBody.setSelection(start + 1 + toInsert.length());
+                                }
+                            } finally {
+                                etBody.addTextChangedListener(formattingTextWatcher);
+                                internalChange = false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            @Override public void afterTextChanged(android.text.Editable s) {}
+        });
     }
 
     private void setupFormattingBar() {
@@ -432,6 +563,111 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         
         btnAddPhoto.setOnClickListener(v -> handleAddPhoto());
         btnAddAudio.setOnClickListener(v -> handleAddAudio());
+
+        if (btnChecklist != null) {
+            btnChecklist.setOnClickListener(v -> {
+                checklistMode = !checklistMode;
+                updateChecklistButtonAppearance();
+                if (checklistMode) {
+                    ensureUncheckedBulletAtLineStart();
+                }
+            });
+        }
+
+        // Allow tapping on ○ / ● at start of a line to toggle completed state (only when tapping the glyph)
+        etBody.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                Editable e = etBody.getText();
+                if (e == null) return false;
+                android.text.Layout layout = etBody.getLayout();
+                if (layout == null) return false;
+
+                // Identify the tapped line from Y, then compute bullet bounds
+                int line = layout.getLineForVertical((int) event.getY());
+                int lineStart = layout.getLineStart(line);
+                if (lineStart < 0 || lineStart >= e.length()) return false;
+
+                char first = e.charAt(lineStart);
+                if (first != '\u25CB' && first != '\u25CF') return false; // no bullet at start
+
+                // Horizontal bounds for just the bullet glyph
+                float leftX = layout.getPrimaryHorizontal(lineStart);
+                float rightX = layout.getPrimaryHorizontal(Math.min(lineStart + 1, e.length()));
+                if (rightX < leftX) {
+                    float tmp = leftX; leftX = rightX; rightX = tmp;
+                }
+
+                // Add a small tap slop around the glyph
+                float density = getResources().getDisplayMetrics().density;
+                float slop = 12f * density;
+                float touchX = event.getX();
+
+                if (touchX >= leftX - slop && touchX <= rightX + slop) {
+                    try {
+                        etBody.removeTextChangedListener(formattingTextWatcher);
+                        char newCh = (first == '\u25CB') ? '\u25CF' : '\u25CB';
+                        e.replace(lineStart, Math.min(lineStart + 1, e.length()), String.valueOf(newCh));
+                        applyBulletSpan(e, lineStart);
+                        etBody.setSelection(Math.min(lineStart + 1, e.length()));
+                    } finally {
+                        etBody.addTextChangedListener(formattingTextWatcher);
+                    }
+                }
+            }
+            // Always return false so EditText can handle focus/keyboard
+            return false;
+        });
+    }
+
+    private void toggleChecklistForCurrentLine() {
+        if (etBody == null) return;
+        Editable e = etBody.getText();
+        if (e == null) return;
+
+        int cursor = etBody.getSelectionStart();
+        int lineStart = Math.max(0, e.toString().lastIndexOf('\n', Math.max(0, cursor - 1)) + 1);
+        int lineEndIdx = Math.max(lineStart, e.toString().indexOf('\n', cursor));
+        if (lineEndIdx < 0) lineEndIdx = e.length();
+
+        int prefixMax = Math.min(lineStart + 4, e.length());
+        String existingPrefix = e.subSequence(lineStart, prefixMax).toString();
+
+        // Support both old markdown checkboxes and new circle bullets
+        String uncheckedMd = "- [ ] ";
+        String checkedMd   = "- [x] ";
+        String uncheckedCirc = "\u25CB "; // ○ + space
+        String checkedCirc   = "\u25CF ";  // ● + space
+
+        // Normalize: if old style present, treat as circle style
+        if (existingPrefix.startsWith("- [ ")) {
+            if (existingPrefix.startsWith("- [x] ")) {
+                existingPrefix = checkedCirc;
+            } else if (existingPrefix.startsWith("- [ ] ")) {
+                existingPrefix = uncheckedCirc;
+            }
+        }
+
+        // Temporarily disable formatting so prefix doesn't inherit size/bold
+        etBody.removeTextChangedListener(formattingTextWatcher);
+
+        if (existingPrefix.startsWith(uncheckedCirc)) {
+            e.replace(lineStart, lineStart + uncheckedCirc.length(), checkedCirc);
+            applyBulletSpan(e, lineStart);
+            int newPos = Math.min(lineStart + checkedCirc.length(), e.length());
+            etBody.setSelection(newPos);
+        } else if (existingPrefix.startsWith(checkedCirc)) {
+            e.replace(lineStart, lineStart + checkedCirc.length(), uncheckedCirc);
+            applyBulletSpan(e, lineStart);
+            int newPos = Math.min(lineStart + uncheckedCirc.length(), e.length());
+            etBody.setSelection(newPos);
+        } else {
+            e.insert(lineStart, uncheckedCirc);
+            applyBulletSpan(e, lineStart);
+            int newPos = Math.min(lineStart + uncheckedCirc.length(), e.length());
+            etBody.setSelection(newPos);
+        }
+
+        etBody.addTextChangedListener(formattingTextWatcher);
     }
     
     /**
@@ -523,7 +759,14 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         if (noteText != null && !noteText.isEmpty()) {
             android.util.Log.d("NoteEditor", "📖 Loading markdown: " + noteText);
             android.text.Spanned formattedText = MarkdownConverter.fromMarkdown(this, noteText);
-            etBody.setText(formattedText);
+            // Use BufferType.SPANNABLE to preserve spans, then re-apply larger bullet styling
+            etBody.setText(formattedText, android.widget.TextView.BufferType.SPANNABLE);
+            try {
+                etBody.removeTextChangedListener(formattingTextWatcher);
+                applyBulletSpansForWholeText();
+            } finally {
+                etBody.addTextChangedListener(formattingTextWatcher);
+            }
             android.util.Log.d("NoteEditor", "✅ Loaded formatted text, length: " + formattedText.length());
         } else {
             etBody.setText("");
@@ -699,8 +942,8 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private void updateLocationChip() {
         if (currentNote.hasGeofence()) {
             Geofence geofence = currentNote.getGeofence();
-            String displayText = geofence.getAddress() != null && !geofence.getAddress().isEmpty() 
-                ? geofence.getAddress() 
+            String displayText = geofence.getAddressName() != null && !geofence.getAddressName().isEmpty() 
+                ? geofence.getAddressName() 
                 : "Location (" + geofence.getRadius() + "m)";
             chipLocation.setText(displayText);
             chipLocation.setCloseIconVisible(true);
@@ -827,7 +1070,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             intent.putExtra(MapLocationPickerActivity.EXTRA_LATITUDE, geofence.getLatitude());
             intent.putExtra(MapLocationPickerActivity.EXTRA_LONGITUDE, geofence.getLongitude());
             intent.putExtra(MapLocationPickerActivity.EXTRA_RADIUS, geofence.getRadius());
-            intent.putExtra(MapLocationPickerActivity.EXTRA_ADDRESS, geofence.getAddress());
+            intent.putExtra(MapLocationPickerActivity.EXTRA_ADDRESS, geofence.getAddressName());
         }
         
         startActivityForResult(intent, REQUEST_CODE_MAP_LOCATION_PICKER);
@@ -839,9 +1082,15 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private void showAddReminderDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_reminder, null);
         TextView tvSelectedDatetime = dialogView.findViewById(R.id.tv_selected_datetime);
+        com.google.android.material.slider.Slider sliderRange = dialogView.findViewById(R.id.slider_range);
+        TextView tvRangeValue = dialogView.findViewById(R.id.tv_range_value);
         
         final Calendar calendar = Calendar.getInstance();
         
+        // Default range minutes
+        final int[] selectedRange = new int[]{ com.example.anchornotes_team3.store.TimeRangeStore.getInstance(this)
+                .getRangeMinutes(currentNote.getId()) };
+
         // Pre-fill if time reminder exists
         if (currentNote.hasTimeReminder()) {
             Instant reminderTime = currentNote.getReminderTime();
@@ -870,12 +1119,25 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             datePickerDialog.show();
         });
         
+        if (sliderRange != null) {
+            // Ensure slider bounds are set (min 1 minute, max 180, step 1 minute)
+            sliderRange.setValueFrom(1f);
+            sliderRange.setValueTo(180f);
+            sliderRange.setStepSize(1f);
+            sliderRange.setValue(selectedRange[0]);
+            if (tvRangeValue != null) tvRangeValue.setText(selectedRange[0] + " minutes");
+            sliderRange.addOnChangeListener((s, value, fromUser) -> {
+                selectedRange[0] = Math.max(1, Math.round(value));
+                if (tvRangeValue != null) tvRangeValue.setText(selectedRange[0] + " minutes");
+            });
+        }
+
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setView(dialogView)
                 .setPositiveButton(R.string.btn_ok, (d, which) -> {
                     // Save time reminder
                     Instant reminderTime = Instant.ofEpochMilli(calendar.getTimeInMillis());
-                    saveTimeReminder(reminderTime);
+                    saveTimeReminder(reminderTime, selectedRange[0]);
                 })
                 .setNegativeButton(R.string.btn_cancel, null)
                 .create();
@@ -886,8 +1148,17 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
      * Save time reminder
      */
     private void saveTimeReminder(Instant reminderTime) {
+        saveTimeReminder(reminderTime, 60);
+    }
+
+    private void saveTimeReminder(Instant reminderTime, int rangeMinutes) {
         currentNote.setReminderTime(reminderTime);
         updateReminderChip();
+        // Persist user-selected range if we have an ID
+        if (currentNote.getId() != null && !currentNote.getId().isEmpty()) {
+            com.example.anchornotes_team3.store.TimeRangeStore.getInstance(this)
+                .setRangeMinutes(currentNote.getId(), rangeMinutes);
+        }
         
         // If note exists on backend, save reminder immediately
         if (currentNote.getId() != null && !currentNote.getId().isEmpty()) {
@@ -897,6 +1168,10 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                 public void onSuccess(Note note) {
                     currentNote.setReminderTime(note.getReminderTime());
                     android.util.Log.d("NoteEditor", "✅ Time reminder saved successfully");
+                    if (currentNote.getId() != null && !currentNote.getId().isEmpty()) {
+                        com.example.anchornotes_team3.store.TimeRangeStore.getInstance(NoteEditorActivity.this)
+                            .setRangeMinutes(currentNote.getId(), rangeMinutes);
+                    }
                     Toast.makeText(NoteEditorActivity.this, "Reminder set", Toast.LENGTH_SHORT).show();
                 }
                 
@@ -1144,6 +1419,8 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                     updateReminderChip();
                     Toast.makeText(NoteEditorActivity.this, 
                         R.string.reminder_cleared, Toast.LENGTH_SHORT).show();
+                    // Clear stored range
+                    com.example.anchornotes_team3.store.TimeRangeStore.getInstance(NoteEditorActivity.this).clear(noteId);
                 }
 
                 @Override
