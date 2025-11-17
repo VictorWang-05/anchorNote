@@ -63,6 +63,7 @@ public class TemplateService {
                 .name(request.getName())
                 .text(request.getText())
                 .pinned(request.getPinned() != null ? request.getPinned() : false)
+                .backgroundColor(request.getBackgroundColor())
                 .build();
 
         // Handle tags
@@ -112,6 +113,9 @@ public class TemplateService {
         }
         if (request.getPinned() != null) {
             template.setPinned(request.getPinned());
+        }
+        if (request.getBackgroundColor() != null) {
+            template.setBackgroundColor(request.getBackgroundColor());
         }
 
         // Update tags if provided
@@ -178,6 +182,7 @@ public class TemplateService {
                 .pinned(template.getPinned())
                 .tags(new HashSet<>(template.getTags())) // Copy tags
                 .geofence(template.getGeofence()) // Link to same geofence
+                .backgroundColor(template.getBackgroundColor()) // Copy background color
                 .build();
 
         Note saved = noteRepository.save(note);

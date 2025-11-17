@@ -38,6 +38,7 @@ public class EntityMapper {
                 .audio(note.getAudio() != null ? toAttachmentResponse(note.getAudio()) : null)
                 .hasPhoto(note.hasPhoto())
                 .hasAudio(note.hasAudio())
+                .backgroundColor(note.getBackgroundColor())
                 .build();
     }
 
@@ -117,6 +118,7 @@ public class EntityMapper {
                 .geofence(template.getGeofence() != null ? toGeofenceResponse(template.getGeofence(), null) : null)
                 .image(template.getImage() != null ? toAttachmentResponse(template.getImage()) : null)
                 .audio(template.getAudio() != null ? toAttachmentResponse(template.getAudio()) : null)
+                .backgroundColor(template.getBackgroundColor())
                 .build();
     }
 }

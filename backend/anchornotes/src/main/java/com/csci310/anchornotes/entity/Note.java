@@ -70,6 +70,9 @@ public class Note {
     @JoinColumn(name = "audio_file")
     private AudioAttachment audio;
 
+    @Column(name = "background_color")
+    private String backgroundColor;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {

@@ -43,17 +43,16 @@ public class StatisticsActivity extends AppCompatActivity {
         ThemeUtils.applySavedTheme(this);
         setContentView(R.layout.activity_statistics);
 
+        // Hide action bar
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().hide();
+        }
+
         repository = NoteRepository.getInstance(this);
         authManager = AuthManager.getInstance(this);
 
-        // Back button
-        android.view.View back = findViewById(R.id.btnBack);
-        if (back != null) {
-            back.setOnClickListener(v -> finish());
-        }
-
         // Setup bottom navigation
-        BottomNavigationHelper.setupBottomNavigation(this, authManager);
+        BottomNavigationHelper.setupBottomNavigation(this, authManager, BottomNavigationHelper.NavItem.STATS);
 
         tvLastUpdated = findViewById(R.id.lastUpdated);
         tvTotalNotes = findViewById(R.id.tvTotalNotes);
@@ -156,6 +155,31 @@ public class StatisticsActivity extends AppCompatActivity {
                     } else {
                         t2.setText("");
                     }
+
+                    // Apply note background color in light mode only
+                    if (item instanceof com.google.android.material.card.MaterialCardView) {
+                        com.google.android.material.card.MaterialCardView cardView = (com.google.android.material.card.MaterialCardView) item;
+
+                        // Check if dark mode is enabled
+                        int nightModeFlags = getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+                        boolean isDarkMode = nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+
+                        if (!isDarkMode && n.getBackgroundColor() != null && !n.getBackgroundColor().isEmpty()) {
+                            // In light mode, use the note's actual background color
+                            try {
+                                int color = android.graphics.Color.parseColor(n.getBackgroundColor());
+                                cardView.setCardBackgroundColor(color);
+                            } catch (Exception e) {
+                                // Use default if parsing fails
+                                cardView.setCardBackgroundColor(getResources().getColor(R.color.card_background, null));
+                            }
+                        } else if (!isDarkMode) {
+                            // Light mode with no custom color - use default
+                            cardView.setCardBackgroundColor(getResources().getColor(R.color.card_background, null));
+                        }
+                        // In dark mode, keep the default card_background color (which is dark gray)
+                    }
+
                     item.setOnClickListener(v -> {
                         if (n.getId() != null) {
                             android.content.Intent intent = new android.content.Intent(this, NoteEditorActivity.class);

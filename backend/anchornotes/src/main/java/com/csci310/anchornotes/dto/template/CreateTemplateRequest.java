@@ -24,4 +24,6 @@ public class CreateTemplateRequest {
     private List<Long> tagIds;
 
     private GeofenceRequest geofence;
+
+    private String backgroundColor;
 }

@@ -2,6 +2,7 @@ package com.example.anchornotes_team3;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -16,22 +17,27 @@ import com.example.anchornotes_team3.auth.AuthManager;
 import com.example.anchornotes_team3.model.Note;
 import com.example.anchornotes_team3.model.Template;
 import com.example.anchornotes_team3.repository.NoteRepository;
+import com.example.anchornotes_team3.store.ActiveGeofencesStore;
 import com.example.anchornotes_team3.util.BottomNavigationHelper;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class TemplateActivity extends AppCompatActivity {
 
-    private MaterialToolbar toolbar;
     private RecyclerView rvTemplates;
     private TextView tvEmpty;
     private FloatingActionButton fabCreateTemplate;
 
     private NoteRepository noteRepository;
     private AuthManager authManager;
+    private ActiveGeofencesStore activeGeofencesStore;
     private TemplateAdapter templateAdapter;
     private List<Template> templates;
 
@@ -40,22 +46,23 @@ public class TemplateActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_template);
 
-        // Initialize repositories
+        // Hide action bar
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().hide();
+        }
+
+        // Initialize repositories and stores
         noteRepository = NoteRepository.getInstance(this);
         authManager = AuthManager.getInstance(this);
+        activeGeofencesStore = ActiveGeofencesStore.getInstance(this);
 
         // Initialize views
-        toolbar = findViewById(R.id.toolbar);
         rvTemplates = findViewById(R.id.rv_templates);
         tvEmpty = findViewById(R.id.tv_empty);
         fabCreateTemplate = findViewById(R.id.fab_create_template);
 
-        // Set up toolbar
-        setSupportActionBar(toolbar);
-        toolbar.setNavigationOnClickListener(v -> finish());
-
         // Setup bottom navigation
-        BottomNavigationHelper.setupBottomNavigation(this, authManager);
+        BottomNavigationHelper.setupBottomNavigation(this, authManager, BottomNavigationHelper.NavItem.TEMPLATES);
 
         // Initialize adapter
         templates = new ArrayList<>();
@@ -81,6 +88,15 @@ public class TemplateActivity extends AppCompatActivity {
 
         // Set up FAB click listener
         fabCreateTemplate.setOnClickListener(v -> showCreateTemplateDialog());
+        
+        // Set up listener for active geofences (to re-sort when user enters/exits geofences)
+        activeGeofencesStore.addListener(activeGeofenceIds -> {
+            Log.d("TemplateActivity", "Active geofences changed: " + activeGeofenceIds.size() + " geofences");
+            // Re-sort templates when geofences change
+            if (templates != null && !templates.isEmpty()) {
+                sortAndDisplayTemplates(templates);
+            }
+        });
 
         // Load templates
         loadTemplates();
@@ -97,19 +113,193 @@ public class TemplateActivity extends AppCompatActivity {
         noteRepository.getAllTemplates(new NoteRepository.TemplatesCallback() {
             @Override
             public void onSuccess(List<Template> templateList) {
-                templates = templateList;
-                templateAdapter.setTemplates(templates);
+                // Create a new list starting with the example template
+                templates = new ArrayList<>();
+                templates.add(createExampleTemplate());
+                
+                // Add user's templates after the example
+                if (templateList != null) {
+                    templates.addAll(templateList);
+                }
+                
+                // Check proximity to template geofences to ensure ActiveGeofencesStore is up-to-date
+                checkProximityToTemplateGeofences(templates);
+                
+                sortAndDisplayTemplates(templates);
                 updateEmptyState();
             }
 
             @Override
             public void onError(String error) {
                 Toast.makeText(TemplateActivity.this, "Failed to load templates: " + error, Toast.LENGTH_SHORT).show();
+                // Even on error, show the example template
                 templates = new ArrayList<>();
-                templateAdapter.setTemplates(templates);
+                templates.add(createExampleTemplate());
+                sortAndDisplayTemplates(templates);
                 updateEmptyState();
             }
         });
+    }
+    
+    /**
+     * Create a hard-coded example template that appears for all users
+     */
+    private Template createExampleTemplate() {
+        Template example = new Template();
+        example.setId("example_template_hardcoded"); // Special ID to identify it
+        example.setName("Example Template");
+        
+        // Create content with formatting: "example content"
+        // First word (example) = italic, Second word (content) = bold
+        // Using markdown format for formatting
+        String formattedContent = "*example* **content**";
+        example.setText(formattedContent);
+        
+        example.setPinned(false);
+        
+        // Set light brownish background color
+        example.setBackgroundColor("#F5E6D3");
+        
+        // No tags or geofence for example template
+        example.setTags(new ArrayList<>());
+        example.setGeofence(null);
+        
+        return example;
+    }
+    
+    /**
+     * Check if user is currently near any template geofences and update ActiveGeofencesStore
+     */
+    private void checkProximityToTemplateGeofences(List<Template> templates) {
+        if (templates == null || templates.isEmpty()) {
+            return;
+        }
+        
+        // Check if we have location permission
+        if (androidx.core.app.ActivityCompat.checkSelfPermission(this, 
+                android.Manifest.permission.ACCESS_FINE_LOCATION) 
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            Log.d("TemplateActivity", "No location permission for proximity check");
+            return;
+        }
+        
+        // Get templates with geofences
+        List<Template> templatesWithGeofences = templates.stream()
+            .filter(t -> t.getGeofence() != null)
+            .collect(Collectors.toList());
+        
+        if (templatesWithGeofences.isEmpty()) {
+            return;
+        }
+        
+        Log.d("TemplateActivity", "Checking proximity to " + templatesWithGeofences.size() + " template geofences...");
+        
+        // Get current location
+        com.google.android.gms.location.FusedLocationProviderClient fusedLocationClient = 
+            com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(this);
+        
+        fusedLocationClient.getCurrentLocation(
+            com.google.android.gms.location.Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+            null
+        ).addOnSuccessListener(location -> {
+            if (location != null) {
+                Log.d("TemplateActivity", "Current location: " + location.getLatitude() + ", " + location.getLongitude());
+                
+                // Check distance to each template geofence
+                for (Template template : templatesWithGeofences) {
+                    com.example.anchornotes_team3.model.Geofence geo = template.getGeofence();
+                    float[] distance = new float[1];
+                    android.location.Location.distanceBetween(
+                        location.getLatitude(), 
+                        location.getLongitude(),
+                        geo.getLatitude(), 
+                        geo.getLongitude(), 
+                        distance
+                    );
+                    
+                    if (distance[0] <= geo.getRadius()) {
+                        Log.d("TemplateActivity", "✅ Within range of template geofence " + geo.getId() + 
+                            " (distance: " + distance[0] + "m, radius: " + geo.getRadius() + "m)");
+                        activeGeofencesStore.addActiveGeofence(geo.getId());
+                    } else {
+                        Log.d("TemplateActivity", "❌ Outside range of template geofence " + geo.getId() + 
+                            " (distance: " + distance[0] + "m, radius: " + geo.getRadius() + "m)");
+                        // Remove if it was previously active
+                        activeGeofencesStore.removeActiveGeofence(geo.getId());
+                    }
+                }
+                
+                // After updating active geofences, re-sort templates
+                sortAndDisplayTemplates(templates);
+            } else {
+                Log.w("TemplateActivity", "Could not get current location for proximity check");
+            }
+        }).addOnFailureListener(e -> {
+            Log.e("TemplateActivity", "Failed to get current location for proximity check", e);
+        });
+    }
+    
+    /**
+     * Sort templates by location relevance and display them
+     * Example template always appears first, then location-relevant templates, then others
+     */
+    private void sortAndDisplayTemplates(List<Template> templateList) {
+        if (templateList == null || templateList.isEmpty()) {
+            templateAdapter.setTemplates(new ArrayList<>());
+            templateAdapter.setActiveGeofenceIds(new HashSet<>());
+            return;
+        }
+        
+        // Get currently active geofences
+        Set<String> activeGeofences = activeGeofencesStore.getActiveGeofenceIds();
+        
+        // Sort templates: example template first, then location-relevant ones, then others
+        List<Template> sortedTemplates = templateList.stream()
+            .sorted((t1, t2) -> {
+                boolean t1IsExample = "example_template_hardcoded".equals(t1.getId());
+                boolean t2IsExample = "example_template_hardcoded".equals(t2.getId());
+                
+                // Example template always comes first
+                if (t1IsExample && !t2IsExample) {
+                    return -1;
+                } else if (!t1IsExample && t2IsExample) {
+                    return 1;
+                }
+                
+                // For non-example templates, sort by location relevance
+                boolean t1HasMatchingGeofence = hasMatchingGeofence(t1, activeGeofences);
+                boolean t2HasMatchingGeofence = hasMatchingGeofence(t2, activeGeofences);
+                
+                // Location-relevant templates come first
+                if (t1HasMatchingGeofence && !t2HasMatchingGeofence) {
+                    return -1;
+                } else if (!t1HasMatchingGeofence && t2HasMatchingGeofence) {
+                    return 1;
+                } else {
+                    // Both same relevance - sort by name
+                    String name1 = t1.getName() != null ? t1.getName() : "";
+                    String name2 = t2.getName() != null ? t2.getName() : "";
+                    return name1.compareToIgnoreCase(name2);
+                }
+            })
+            .collect(Collectors.toList());
+        
+        Log.d("TemplateActivity", "Sorted " + sortedTemplates.size() + " templates (" + 
+            activeGeofences.size() + " active geofences)");
+        
+        // Update adapter with sorted templates and active geofences
+        templateAdapter.setTemplates(sortedTemplates);
+        templateAdapter.setActiveGeofenceIds(activeGeofences);
+    }
+    
+    /**
+     * Check if template has a geofence matching any active geofence
+     */
+    private boolean hasMatchingGeofence(Template template, Set<String> activeGeofences) {
+        if (template.getGeofence() == null || template.getGeofence().getId() == null) {
+            return false;
+        }
+        return activeGeofences.contains(template.getGeofence().getId());
     }
 
     private void updateEmptyState() {
@@ -134,6 +324,12 @@ public class TemplateActivity extends AppCompatActivity {
             Toast.makeText(this, "Invalid template", Toast.LENGTH_SHORT).show();
             return;
         }
+        
+        // Don't allow editing the example template
+        if ("example_template_hardcoded".equals(template.getId())) {
+            Toast.makeText(this, "Cannot edit example template. Use it to create a note instead!", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         // Open note editor in template edit mode
         Intent intent = new Intent(TemplateActivity.this, NoteEditorActivity.class);
@@ -143,9 +339,35 @@ public class TemplateActivity extends AppCompatActivity {
         intent.putExtra("template_text", template.getText());
         intent.putExtra("template_pinned", template.getPinned() != null ? template.getPinned() : false);
         
-        // Note: Tags and geofence are not passed via intent extras to keep it simple
-        // When editing, they will start empty, but user can add them
-        // The backend will update the template with whatever tags/geofence are in the request
+        // Pass tags as ArrayList of tag IDs and names
+        if (template.getTags() != null && !template.getTags().isEmpty()) {
+            ArrayList<String> tagIds = new ArrayList<>();
+            ArrayList<String> tagNames = new ArrayList<>();
+            ArrayList<String> tagColors = new ArrayList<>();
+            for (com.example.anchornotes_team3.model.Tag tag : template.getTags()) {
+                tagIds.add(tag.getId());
+                tagNames.add(tag.getName());
+                tagColors.add(tag.getColor());
+            }
+            intent.putStringArrayListExtra("template_tag_ids", tagIds);
+            intent.putStringArrayListExtra("template_tag_names", tagNames);
+            intent.putStringArrayListExtra("template_tag_colors", tagColors);
+        }
+        
+        // Pass geofence if exists
+        if (template.getGeofence() != null) {
+            intent.putExtra("template_geofence_id", template.getGeofence().getId());
+            intent.putExtra("template_geofence_lat", template.getGeofence().getLatitude());
+            intent.putExtra("template_geofence_lng", template.getGeofence().getLongitude());
+            intent.putExtra("template_geofence_radius", template.getGeofence().getRadius());
+            intent.putExtra("template_geofence_address", template.getGeofence().getAddressName());
+        }
+
+        // Pass background color if exists
+        if (template.getBackgroundColor() != null) {
+            intent.putExtra("template_background_color", template.getBackgroundColor());
+        }
+
         startActivity(intent);
     }
 
@@ -154,13 +376,24 @@ public class TemplateActivity extends AppCompatActivity {
             Toast.makeText(this, "Invalid template", Toast.LENGTH_SHORT).show();
             return;
         }
+        
+        // Handle example template specially (it's not in the backend)
+        if ("example_template_hardcoded".equals(template.getId())) {
+            // Create a new note directly with example template content
+            Intent intent = new Intent(TemplateActivity.this, NoteEditorActivity.class);
+            // Don't pass note_id - this creates a new note
+            intent.putExtra("template_content", template.getText());
+            intent.putExtra("template_background_color", template.getBackgroundColor());
+            startActivity(intent);
+            return;
+        }
 
         // Generate a default note title based on template name
         String defaultTitle = template.getName() != null && !template.getName().isEmpty() 
             ? template.getName() + " (Copy)"
             : "Untitled Note";
 
-        // Instantiate template directly without showing dialog
+        // Instantiate template via backend API
         noteRepository.instantiateTemplate(template.getId(), defaultTitle, new NoteRepository.NoteCallback() {
             @Override
             public void onSuccess(Note note) {
@@ -179,6 +412,12 @@ public class TemplateActivity extends AppCompatActivity {
 
     private void confirmDeleteTemplate(Template template) {
         if (template == null || template.getId() == null) {
+            return;
+        }
+        
+        // Don't allow deleting the example template
+        if ("example_template_hardcoded".equals(template.getId())) {
+            Toast.makeText(this, "Cannot delete example template", Toast.LENGTH_SHORT).show();
             return;
         }
 

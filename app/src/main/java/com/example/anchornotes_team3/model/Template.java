@@ -14,11 +14,12 @@ public class Template {
     private Geofence geofence;
     private Attachment image;
     private Attachment audio;
+    private String backgroundColor;
 
     public Template() {
     }
 
-    public Template(String id, String name, String text, Boolean pinned, List<Tag> tags, Geofence geofence, Attachment image, Attachment audio) {
+    public Template(String id, String name, String text, Boolean pinned, List<Tag> tags, Geofence geofence, Attachment image, Attachment audio, String backgroundColor) {
         this.id = id;
         this.name = name;
         this.text = text;
@@ -27,6 +28,7 @@ public class Template {
         this.geofence = geofence;
         this.image = image;
         this.audio = audio;
+        this.backgroundColor = backgroundColor;
     }
 
     public String getId() {
@@ -91,6 +93,14 @@ public class Template {
 
     public void setAudio(Attachment audio) {
         this.audio = audio;
+    }
+
+    public String getBackgroundColor() {
+        return backgroundColor;
+    }
+
+    public void setBackgroundColor(String backgroundColor) {
+        this.backgroundColor = backgroundColor;
     }
 }
 

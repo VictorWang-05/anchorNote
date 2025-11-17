@@ -24,6 +24,7 @@ public class NoteResponse {
     private AttachmentResponse audio;
     private Boolean hasPhoto;
     private Boolean hasAudio;
+    private String backgroundColor;
 
     // Getters
     public String getId() {
@@ -76,6 +77,10 @@ public class NoteResponse {
 
     public Boolean getHasAudio() {
         return hasAudio;
+    }
+
+    public String getBackgroundColor() {
+        return backgroundColor;
     }
 
     /**

@@ -16,4 +16,5 @@ public class UpdateNoteRequest {
     private String text;
     private Boolean pinned;
     private List<Long> tagIds;
+    private String backgroundColor;
 }

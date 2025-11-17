@@ -9,19 +9,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:layout_marginBottom="72dp">
-
-    <!-- Toolbar -->
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@color/orange_primary"
-        android:elevation="4dp"
-        app:title="Filter Notes"
-        app:titleTextColor="@color/white"
-        app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"
-        app:navigationIconTint="@color/white" />
+    android:layout_marginBottom="104dp">
 
     <ScrollView
         android:layout_width="match_parent"
@@ -35,6 +23,16 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- Header -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:text="Filter Notes"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_header" />
+
             <!-- Filter by Tags Section -->
             <TextView
                 android:layout_width="wrap_content"
@@ -42,7 +40,7 @@
                 android:text="Filter by Tags"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:textColor="@color/orange_dark"
+                android:textColor="@color/text_primary"
                 android:layout_marginBottom="8dp" />
 
             <com.google.android.material.chip.ChipGroup
@@ -71,7 +69,7 @@
                 android:text="Attachments"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:textColor="@color/orange_dark"
+                android:textColor="@color/text_primary"
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="8dp" />
 
@@ -81,7 +79,7 @@
                 android:layout_height="wrap_content"
                 android:text="Has Photo"
                 android:textColor="@color/text_dark"
-                app:buttonTint="@color/orange_primary" />
+                app:buttonTint="@color/accent_blue" />
 
             <com.google.android.material.checkbox.MaterialCheckBox
                 android:id="@+id/checkbox_has_audio"
@@ -89,7 +87,7 @@
                 android:layout_height="wrap_content"
                 android:text="Has Audio"
                 android:textColor="@color/text_dark"
-                app:buttonTint="@color/orange_primary" />
+                app:buttonTint="@color/accent_blue" />
 
             <com.google.android.material.checkbox.MaterialCheckBox
                 android:id="@+id/checkbox_has_location"
@@ -98,7 +96,57 @@
                 android:text="Has Location/Geofence"
                 android:textColor="@color/text_dark"
                 android:layout_marginBottom="24dp"
-                app:buttonTint="@color/orange_primary" />
+                app:buttonTint="@color/accent_blue" />
+
+            <!-- Last Edited Date Range -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Last edited"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/orange_dark"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_date_from"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="From"
+                    app:cornerRadius="12dp" />
+
+                <View
+                    android:layout_width="12dp"
+                    android:layout_height="1dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_date_to"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="To"
+                    app:cornerRadius="12dp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_date_hint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tip: leave either blank to filter open-ended"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="24dp" />
 
         </LinearLayout>
     </ScrollView>
@@ -109,7 +157,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="16dp"
-        android:background="@color/white"
+        android:background="@color/card_background"
         android:elevation="8dp">
 
         <com.google.android.material.button.MaterialButton
@@ -120,8 +168,8 @@
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
             android:text="Clear"
-            android:textColor="@color/orange_primary"
-            app:strokeColor="@color/orange_primary"
+            android:textColor="@color/accent_blue"
+            app:strokeColor="@color/accent_blue"
             app:cornerRadius="12dp" />
 
         <com.google.android.material.button.MaterialButton
@@ -132,7 +180,7 @@
             android:layout_marginStart="8dp"
             android:text="Apply Filter"
             android:textColor="@color/white"
-            android:backgroundTint="@color/orange_primary"
+            android:backgroundTint="@color/accent_blue"
             app:cornerRadius="12dp" />
     </LinearLayout>
 

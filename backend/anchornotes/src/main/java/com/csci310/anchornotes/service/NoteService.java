@@ -49,6 +49,7 @@ public class NoteService {
                 .title(request.getTitle())
                 .text(request.getText())
                 .pinned(request.getPinned() != null ? request.getPinned() : false)
+                .backgroundColor(request.getBackgroundColor())
                 .build();
 
         // Handle tags
@@ -131,6 +132,9 @@ public class NoteService {
         }
         if (request.getPinned() != null) {
             note.setPinned(request.getPinned());
+        }
+        if (request.getBackgroundColor() != null) {
+            note.setBackgroundColor(request.getBackgroundColor());
         }
 
         // Update tags if provided

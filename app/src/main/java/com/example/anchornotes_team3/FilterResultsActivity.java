@@ -132,11 +132,19 @@ public class FilterResultsActivity extends AppCompatActivity {
             summaryParts.add("Has Location");
         }
 
+        if (filterCriteria.getLastEditedFromMs() != null || filterCriteria.getLastEditedToMs() != null) {
+            java.text.SimpleDateFormat fmt = new java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault());
+            String from = filterCriteria.getLastEditedFromMs() != null ? fmt.format(new java.util.Date(filterCriteria.getLastEditedFromMs())) : "…";
+            String to = filterCriteria.getLastEditedToMs() != null ? fmt.format(new java.util.Date(filterCriteria.getLastEditedToMs())) : "…";
+            summaryParts.add("Edited: " + from + " – " + to);
+        }
+
         String summary = String.join(", ", summaryParts);
         tvFilterSummary.setText(summary.isEmpty() ? "None" : summary);
     }
 
     private void performFilter() {
+        // Call backend filter for tag/photo/audio/location for efficiency, then apply date range locally
         noteRepository.filterNotes(
                 filterCriteria.getTagIds(),
                 null,
@@ -146,15 +154,71 @@ public class FilterResultsActivity extends AppCompatActivity {
                 new NoteRepository.NotesCallback() {
                     @Override
                     public void onSuccess(List<Note> notes) {
-                        displayResults(notes);
+                        List<Note> filtered = applyDateRangeFilter(notes);
+                        displayResults(filtered);
                     }
 
                     @Override
                     public void onError(String error) {
-                        Toast.makeText(FilterResultsActivity.this, "Filter failed: " + error, Toast.LENGTH_SHORT).show();
-                        displayResults(new ArrayList<>());
+                        // Fallback: load all notes and filter entirely on the client
+                        noteRepository.getAllNotes(new NoteRepository.NotesCallback() {
+                            @Override
+                            public void onSuccess(List<Note> notes) {
+                                List<Note> locallyFiltered = applyAllFiltersClientSide(notes);
+                                displayResults(locallyFiltered);
+                            }
+
+                            @Override
+                            public void onError(String e2) {
+                                Toast.makeText(FilterResultsActivity.this, "Filter failed: " + error, Toast.LENGTH_SHORT).show();
+                                displayResults(new ArrayList<>());
+                            }
+                        });
                     }
                 });
+    }
+
+    private List<Note> applyDateRangeFilter(List<Note> notes) {
+        if ((filterCriteria.getLastEditedFromMs() == null) && (filterCriteria.getLastEditedToMs() == null)) return notes;
+        List<Note> out = new ArrayList<>();
+        Long from = filterCriteria.getLastEditedFromMs();
+        Long to = filterCriteria.getLastEditedToMs();
+        for (Note n : notes) {
+            try {
+                java.time.Instant instant = n.getLastEdited();
+                if (instant == null) continue;
+                long ms = instant.toEpochMilli();
+                if ((from == null || ms >= from) && (to == null || ms <= to)) {
+                    out.add(n);
+                }
+            } catch (Exception ignore) {}
+        }
+        return out;
+    }
+
+    private List<Note> applyAllFiltersClientSide(List<Note> notes) {
+        List<Note> out = new ArrayList<>();
+        for (Note n : notes) {
+            if (filterCriteria.getHasPhoto() != null && filterCriteria.getHasPhoto() && !(n.getHasPhoto() != null && n.getHasPhoto())) continue;
+            if (filterCriteria.getHasAudio() != null && filterCriteria.getHasAudio() && !(n.getHasAudio() != null && n.getHasAudio())) continue;
+            if (filterCriteria.getHasLocation() != null && filterCriteria.getHasLocation() && n.getGeofence() == null) continue;
+
+            // Tags: include if all selected tags are present
+            if (filterCriteria.getTagIds() != null && !filterCriteria.getTagIds().isEmpty()) {
+                if (n.getTags() == null) continue;
+                java.util.Set<String> noteTagIds = new java.util.HashSet<>();
+                for (com.example.anchornotes_team3.model.Tag t : n.getTags()) {
+                    if (t.getId() != null) noteTagIds.add(t.getId());
+                }
+                if (!noteTagIds.containsAll(filterCriteria.getTagIds())) continue;
+            }
+
+            // Date range
+            List<Note> single = new ArrayList<>();
+            single.add(n);
+            if (!applyDateRangeFilter(single).isEmpty()) out.add(n);
+        }
+        return out;
     }
 
     private void displayResults(List<Note> notes) {

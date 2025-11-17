@@ -59,6 +59,9 @@ public class Template {
     @JoinColumn(name = "audio_file")
     private PhotoAttachment audio;
 
+    @Column(name = "background_color")
+    private String backgroundColor;
+
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
 

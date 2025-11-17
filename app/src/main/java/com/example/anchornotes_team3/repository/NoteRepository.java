@@ -207,7 +207,8 @@ public class NoteRepository {
         Log.d(TAG, "📤 Creating note: " + note.getTitle());
         CreateNoteRequest request = new CreateNoteRequest(note.getTitle(), note.getText());
         request.setPinned(note.isPinned());
-        
+        request.setBackgroundColor(note.getBackgroundColor());
+
         // Extract tag IDs
         List<String> tagIds = note.getTags().stream()
                 .map(Tag::getId)
@@ -256,7 +257,8 @@ public class NoteRepository {
         request.setTitle(note.getTitle());
         request.setText(note.getText());
         request.setPinned(note.isPinned());
-        
+        request.setBackgroundColor(note.getBackgroundColor());
+
         // Extract tag IDs
         List<String> tagIds = note.getTags().stream()
                 .map(Tag::getId)
@@ -803,7 +805,12 @@ public class NoteRepository {
         if (response.getReminderTimeUtc() != null) {
             note.setReminderTime(response.getReminderTimeUtc());
         }
-        
+
+        // Map background color
+        if (response.getBackgroundColor() != null) {
+            note.setBackgroundColor(response.getBackgroundColor());
+        }
+
         // Map attachments
         List<Attachment> attachments = new ArrayList<>();
         if (response.getImage() != null) {
@@ -891,15 +898,17 @@ public class NoteRepository {
      */
     public void createTemplate(com.example.anchornotes_team3.model.Template template, TemplateCallback callback) {
         Log.d(TAG, "📋 Creating template: " + template.getName());
-        
+
         // Convert template to request DTO
         com.example.anchornotes_team3.dto.CreateTemplateRequest request = new com.example.anchornotes_team3.dto.CreateTemplateRequest();
         request.setName(template.getName());
         request.setText(template.getText());
         request.setPinned(template.getPinned());
+        request.setBackgroundColor(template.getBackgroundColor());
         request.setGeofence(template.getGeofence());
-        
+
         // Convert tag IDs from String to Long
+        // ALWAYS set tagIds, even if empty - empty list means "no tags"
         if (template.getTags() != null && !template.getTags().isEmpty()) {
             List<Long> tagIds = template.getTags().stream()
                 .map(tag -> {
@@ -913,6 +922,9 @@ public class NoteRepository {
                 .filter(id -> id != null)
                 .collect(Collectors.toList());
             request.setTagIds(tagIds);
+        } else {
+            // Set empty list for no tags
+            request.setTagIds(new ArrayList<>());
         }
         
         getApiService().createTemplate(request).enqueue(new Callback<com.example.anchornotes_team3.dto.TemplateResponse>() {
@@ -944,15 +956,17 @@ public class NoteRepository {
      */
     public void updateTemplate(String templateId, com.example.anchornotes_team3.model.Template template, TemplateCallback callback) {
         Log.d(TAG, "📋 Updating template: " + templateId);
-        
+
         // Convert template to request DTO
         com.example.anchornotes_team3.dto.CreateTemplateRequest request = new com.example.anchornotes_team3.dto.CreateTemplateRequest();
         request.setName(template.getName());
         request.setText(template.getText());
         request.setPinned(template.getPinned());
+        request.setBackgroundColor(template.getBackgroundColor());
         request.setGeofence(template.getGeofence());
-        
+
         // Convert tag IDs from String to Long
+        // ALWAYS set tagIds, even if empty - empty list means "clear all tags"
         if (template.getTags() != null && !template.getTags().isEmpty()) {
             List<Long> tagIds = template.getTags().stream()
                 .map(tag -> {
@@ -966,6 +980,9 @@ public class NoteRepository {
                 .filter(id -> id != null)
                 .collect(Collectors.toList());
             request.setTagIds(tagIds);
+        } else {
+            // Set empty list to clear all tags
+            request.setTagIds(new ArrayList<>());
         }
         
         getApiService().updateTemplate(templateId, request).enqueue(new Callback<com.example.anchornotes_team3.dto.TemplateResponse>() {
@@ -1059,6 +1076,11 @@ public class NoteRepository {
         template.setName(response.getName());
         template.setText(response.getText());
         template.setPinned(response.getPinned() != null && response.getPinned());
+        
+        // Map background color
+        if (response.getBackgroundColor() != null) {
+            template.setBackgroundColor(response.getBackgroundColor());
+        }
         
         // Map tags
         if (response.getTags() != null) {

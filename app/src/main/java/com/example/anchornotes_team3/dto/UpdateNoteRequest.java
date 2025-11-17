@@ -10,6 +10,7 @@ public class UpdateNoteRequest {
     private String text;
     private Boolean pinned;
     private List<String> tagIds;  // Backend uses String IDs
+    private String backgroundColor;
 
     public UpdateNoteRequest() {
     }
@@ -44,6 +45,14 @@ public class UpdateNoteRequest {
 
     public void setTagIds(List<String> tagIds) {
         this.tagIds = tagIds;
+    }
+
+    public String getBackgroundColor() {
+        return backgroundColor;
+    }
+
+    public void setBackgroundColor(String backgroundColor) {
+        this.backgroundColor = backgroundColor;
     }
 }
 

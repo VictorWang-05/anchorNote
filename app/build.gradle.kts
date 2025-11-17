@@ -52,6 +52,9 @@ dependencies {
     // Markdown - Markwon for rendering and editing
     implementation("io.noties.markwon:core:4.6.2")
     
+    // Color Picker - Material Color Picker Dialog
+    implementation("com.github.dhaval2404:colorpicker:2.3")
+    
     // Geofencing - Google Play Services
     implementation("com.google.android.gms:play-services-location:21.0.1")
     
@@ -62,7 +65,13 @@ dependencies {
     // Core library desugaring for Java 8+ APIs on older Android versions
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     
+    // Testing - Local Unit Tests (JUnit + Robolectric + Mockito)
     testImplementation(libs.junit)
+    testImplementation("org.robolectric:robolectric:4.11.1")
+    testImplementation("org.mockito:mockito-core:5.7.0")
+    testImplementation("org.mockito:mockito-inline:5.2.0")
+    
+    // Testing - Instrumented Tests (Espresso)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
 }

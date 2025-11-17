@@ -27,4 +27,6 @@ public class CreateNoteRequest {
     private GeofenceRequest geofence;
 
     private TimeReminderRequest reminder;
+
+    private String backgroundColor;
 }

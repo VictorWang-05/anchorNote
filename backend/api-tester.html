@@ -359,6 +359,10 @@
                                 <option value="true">Yes</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label>Background Color (hex):</label>
+                            <input type="color" id="noteBackgroundColor" value="#FFFFFF">
+                        </div>
                         <h3>Geofence (Optional)</h3>
                         <div class="form-group">
                             <label>Latitude:</label>
@@ -426,6 +430,10 @@
                                 <option value="false">No</option>
                                 <option value="true">Yes</option>
                             </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Background Color (hex):</label>
+                            <input type="color" id="updateNoteBackgroundColor" value="#FFFFFF">
                         </div>
                         <button type="submit">Update Note</button>
                     </form>
@@ -892,6 +900,10 @@
                             <textarea id="templateText" rows="3" placeholder="Template content..." required></textarea>
                         </div>
                         <div class="form-group">
+                            <label>Background Color (hex):</label>
+                            <input type="color" id="templateBackgroundColor" value="#FFFFFF">
+                        </div>
+                        <div class="form-group">
                             <label>Tag IDs (comma-separated, optional):</label>
                             <input type="text" id="templateTags" placeholder="1,2">
                         </div>
@@ -931,6 +943,10 @@
                         <div class="form-group">
                             <label>Text:</label>
                             <textarea id="updateTemplateText" rows="3" placeholder="Updated content..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Background Color (hex):</label>
+                            <input type="color" id="updateTemplateBackgroundColor" value="#FFFFFF">
                         </div>
                         <h3>Geofence (Optional)</h3>
                         <div class="form-group">
@@ -1147,7 +1163,13 @@
                 text: document.getElementById('noteText').value,
                 pinned: document.getElementById('notePinned').value === 'true'
             };
-            
+
+            // Add background color
+            const backgroundColor = document.getElementById('noteBackgroundColor').value;
+            if (backgroundColor) {
+                body.backgroundColor = backgroundColor;
+            }
+
             // Add geofence if provided
             const geoLat = document.getElementById('noteGeoLat').value;
             const geoLng = document.getElementById('noteGeoLng').value;
@@ -1189,10 +1211,12 @@
             const title = document.getElementById('updateNoteTitle').value;
             const text = document.getElementById('updateNoteText').value;
             const pinned = document.getElementById('updateNotePinned').value;
+            const backgroundColor = document.getElementById('updateNoteBackgroundColor').value;
 
             if (title) body.title = title;
             if (text) body.text = text;
             if (pinned) body.pinned = pinned === 'true';
+            if (backgroundColor) body.backgroundColor = backgroundColor;
 
             const result = await apiRequest(`/api/notes/${noteId}`, 'PUT', body);
             displayResponse('updateNoteResponse', result);
@@ -1550,6 +1574,12 @@
                 text: document.getElementById('templateText').value
             };
 
+            // Add background color
+            const backgroundColor = document.getElementById('templateBackgroundColor').value;
+            if (backgroundColor) {
+                body.backgroundColor = backgroundColor;
+            }
+
             const tags = document.getElementById('templateTags').value;
             if (tags) {
                 body.tagIds = tags.split(',').map(id => parseInt(id.trim()));
@@ -1582,9 +1612,11 @@
 
             const name = document.getElementById('updateTemplateName').value;
             const text = document.getElementById('updateTemplateText').value;
+            const backgroundColor = document.getElementById('updateTemplateBackgroundColor').value;
 
             if (name) body.name = name;
             if (text) body.text = text;
+            if (backgroundColor) body.backgroundColor = backgroundColor;
 
             // Add geofence if provided
             const geoLat = document.getElementById('updateTemplateGeoLat').value;

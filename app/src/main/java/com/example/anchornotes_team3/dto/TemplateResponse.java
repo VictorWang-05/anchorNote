@@ -18,6 +18,7 @@ public class TemplateResponse {
     private Geofence geofence;
     private AttachmentResponse image;
     private AttachmentResponse audio;
+    private String backgroundColor;
 
     // Getters
     public String getId() {
@@ -50,6 +51,10 @@ public class TemplateResponse {
 
     public AttachmentResponse getAudio() {
         return audio;
+    }
+
+    public String getBackgroundColor() {
+        return backgroundColor;
     }
     
     /**

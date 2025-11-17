@@ -23,4 +23,5 @@ public class TemplateResponse {
     private GeofenceResponse geofence;
     private AttachmentResponse image;
     private AttachmentResponse audio;
+    private String backgroundColor;
 }

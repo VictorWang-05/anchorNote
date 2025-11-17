@@ -13,6 +13,7 @@ public class CreateTemplateRequest {
     private Boolean pinned;
     private List<Long> tagIds;  // Backend expects Long IDs
     private Geofence geofence;
+    private String backgroundColor;
 
     public CreateTemplateRequest() {
     }
@@ -63,6 +64,14 @@ public class CreateTemplateRequest {
 
     public void setGeofence(Geofence geofence) {
         this.geofence = geofence;
+    }
+
+    public String getBackgroundColor() {
+        return backgroundColor;
+    }
+
+    public void setBackgroundColor(String backgroundColor) {
+        this.backgroundColor = backgroundColor;
     }
 }
 

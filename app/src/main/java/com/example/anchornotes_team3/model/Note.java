@@ -27,6 +27,8 @@ public class Note {
     private Boolean hasPhoto;
     private Boolean hasAudio;
 
+    private String backgroundColor;
+
     public Note() {
         this.title = "";
         this.text = "";
@@ -183,6 +185,14 @@ public class Note {
 
     public Boolean getHasAudio() {
         return hasAudio;
+    }
+
+    public String getBackgroundColor() {
+        return backgroundColor;
+    }
+
+    public void setBackgroundColor(String backgroundColor) {
+        this.backgroundColor = backgroundColor;
     }
 }
 

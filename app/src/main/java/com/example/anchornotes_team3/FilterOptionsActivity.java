@@ -23,10 +23,12 @@ import com.google.android.material.chip.ChipGroup;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Calendar;
+import java.text.SimpleDateFormat;
+import java.util.Locale;
 
 public class FilterOptionsActivity extends AppCompatActivity {
 
-    private MaterialToolbar toolbar;
     private ChipGroup chipGroupTags;
     private TextView tvNoTags;
     private MaterialCheckBox checkboxHasPhoto;
@@ -34,6 +36,10 @@ public class FilterOptionsActivity extends AppCompatActivity {
     private MaterialCheckBox checkboxHasLocation;
     private MaterialButton btnClearFilter;
     private MaterialButton btnApplyFilter;
+    private MaterialButton btnDateFrom;
+    private MaterialButton btnDateTo;
+    private Long selectedFromMs = null;
+    private Long selectedToMs = null;
 
     private NoteRepository noteRepository;
     private AuthManager authManager;
@@ -44,20 +50,23 @@ public class FilterOptionsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_filter_options);
 
+        // Hide action bar
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().hide();
+        }
+
         noteRepository = NoteRepository.getInstance(this);
         authManager = AuthManager.getInstance(this);
 
         initializeViews();
-        setupToolbar();
         loadAvailableTags();
         setupClickListeners();
 
         // Setup bottom navigation
-        BottomNavigationHelper.setupBottomNavigation(this, authManager);
+        BottomNavigationHelper.setupBottomNavigation(this, authManager, BottomNavigationHelper.NavItem.FILTER);
     }
 
     private void initializeViews() {
-        toolbar = findViewById(R.id.toolbar);
         chipGroupTags = findViewById(R.id.chip_group_tags);
         tvNoTags = findViewById(R.id.tv_no_tags);
         checkboxHasPhoto = findViewById(R.id.checkbox_has_photo);
@@ -65,11 +74,8 @@ public class FilterOptionsActivity extends AppCompatActivity {
         checkboxHasLocation = findViewById(R.id.checkbox_has_location);
         btnClearFilter = findViewById(R.id.btn_clear_filter);
         btnApplyFilter = findViewById(R.id.btn_apply_filter);
-    }
-
-    private void setupToolbar() {
-        setSupportActionBar(toolbar);
-        toolbar.setNavigationOnClickListener(v -> finish());
+        btnDateFrom = findViewById(R.id.btn_date_from);
+        btnDateTo = findViewById(R.id.btn_date_to);
     }
 
     private void loadAvailableTags() {
@@ -152,6 +158,52 @@ public class FilterOptionsActivity extends AppCompatActivity {
     private void setupClickListeners() {
         btnClearFilter.setOnClickListener(v -> clearAllFilters());
         btnApplyFilter.setOnClickListener(v -> applyFilter());
+
+        if (btnDateFrom != null) {
+            btnDateFrom.setOnClickListener(v -> openDatePicker(true));
+        }
+        if (btnDateTo != null) {
+            btnDateTo.setOnClickListener(v -> openDatePicker(false));
+        }
+    }
+
+    private void openDatePicker(boolean isFrom) {
+        Calendar cal = Calendar.getInstance();
+        long prefill = isFrom ? (selectedFromMs != null ? selectedFromMs : System.currentTimeMillis())
+                              : (selectedToMs != null ? selectedToMs : System.currentTimeMillis());
+        cal.setTimeInMillis(prefill);
+
+        android.app.DatePickerDialog dlg = new android.app.DatePickerDialog(
+                this,
+                (view, year, month, dayOfMonth) -> {
+                    Calendar c = Calendar.getInstance();
+                    c.set(Calendar.YEAR, year);
+                    c.set(Calendar.MONTH, month);
+                    c.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+                    c.set(Calendar.HOUR_OF_DAY, isFrom ? 0 : 23);
+                    c.set(Calendar.MINUTE, isFrom ? 0 : 59);
+                    c.set(Calendar.SECOND, isFrom ? 0 : 59);
+                    c.set(Calendar.MILLISECOND, isFrom ? 0 : 999);
+                    long ms = c.getTimeInMillis();
+                    if (isFrom) {
+                        selectedFromMs = ms;
+                    } else {
+                        selectedToMs = ms;
+                    }
+                    updateDateButtons();
+                },
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
+        dlg.show();
+    }
+
+    private void updateDateButtons() {
+        SimpleDateFormat fmt = new SimpleDateFormat("MMM d, yyyy", Locale.getDefault());
+        if (btnDateFrom != null) {
+            btnDateFrom.setText(selectedFromMs != null ? ("From: " + fmt.format(new java.util.Date(selectedFromMs))) : "From");
+        }
+        if (btnDateTo != null) {
+            btnDateTo.setText(selectedToMs != null ? ("To: " + fmt.format(new java.util.Date(selectedToMs))) : "To");
+        }
     }
 
     private void clearAllFilters() {
@@ -165,6 +217,10 @@ public class FilterOptionsActivity extends AppCompatActivity {
         checkboxHasPhoto.setChecked(false);
         checkboxHasAudio.setChecked(false);
         checkboxHasLocation.setChecked(false);
+
+        selectedFromMs = null;
+        selectedToMs = null;
+        updateDateButtons();
 
         Toast.makeText(this, "Filters cleared", Toast.LENGTH_SHORT).show();
     }
@@ -196,6 +252,10 @@ public class FilterOptionsActivity extends AppCompatActivity {
         if (checkboxHasLocation.isChecked()) {
             criteria.setHasLocation(true);
         }
+
+        // Date range
+        criteria.setLastEditedFromMs(selectedFromMs);
+        criteria.setLastEditedToMs(selectedToMs);
 
         if (criteria.isEmpty()) {
             Toast.makeText(this, "Please select at least one filter", Toast.LENGTH_SHORT).show();

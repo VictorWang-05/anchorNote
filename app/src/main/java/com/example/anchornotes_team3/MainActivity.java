@@ -23,11 +23,13 @@ import android.content.pm.PackageManager;
 import com.example.anchornotes_team3.adapter.NoteAdapter;
 import com.example.anchornotes_team3.auth.AuthManager;
 import com.example.anchornotes_team3.util.ThemeUtils;
+import com.example.anchornotes_team3.util.BottomNavigationHelper;
 import com.example.anchornotes_team3.dto.GeofenceRegistrationResponse;
 import com.example.anchornotes_team3.geofence.GeofenceManager;
 import com.example.anchornotes_team3.model.Note;
 import com.example.anchornotes_team3.repository.NoteRepository;
 import com.example.anchornotes_team3.store.RelevantNotesStore;
+import com.example.anchornotes_team3.store.ActiveGeofencesStore;
 import com.google.android.material.button.MaterialButton;
 
 import retrofit2.Call;
@@ -49,6 +51,7 @@ public class MainActivity extends AppCompatActivity {
     private NoteRepository noteRepository;
     private GeofenceManager geofenceManager;
     private RelevantNotesStore relevantNotesStore;
+    private ActiveGeofencesStore activeGeofencesStore;
     
     // UI elements
     private MaterialButton loginButton;
@@ -57,10 +60,6 @@ public class MainActivity extends AppCompatActivity {
     private MaterialButton newNoteButton;
     private com.google.android.material.textfield.TextInputLayout searchInputLayout;
     private com.google.android.material.textfield.TextInputEditText searchEditText;
-    private View navHome;
-    private View navFilter;
-    private View navTemplates;
-    private View navStats;
     
     // RecyclerViews
     private RecyclerView pinnedRecyclerView;
@@ -102,16 +101,18 @@ public class MainActivity extends AppCompatActivity {
         // User is logged in, continue with normal setup
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
         
-        // Initialize repositories
+        // Initialize repositories and stores
         noteRepository = NoteRepository.getInstance(this);
         geofenceManager = new GeofenceManager(this);
         relevantNotesStore = RelevantNotesStore.getInstance(this);
+        activeGeofencesStore = ActiveGeofencesStore.getInstance(this);
         
         // Find UI elements
         loginButton = findViewById(R.id.loginButton);
@@ -120,10 +121,9 @@ public class MainActivity extends AppCompatActivity {
         newNoteButton = findViewById(R.id.newNoteButton);
         searchInputLayout = findViewById(R.id.searchInputLayout);
         searchEditText = findViewById(R.id.searchEditText);
-        navHome = findViewById(R.id.nav_home);
-        navFilter = findViewById(R.id.nav_filter);
-        navTemplates = findViewById(R.id.nav_templates);
-        navStats = findViewById(R.id.nav_stats);
+
+        // Setup bottom navigation
+        BottomNavigationHelper.setupBottomNavigation(this, authManager, BottomNavigationHelper.NavItem.HOME);
 
         // Find RecyclerViews
         pinnedRecyclerView = findViewById(R.id.pinnedRecyclerView);
@@ -157,7 +157,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        
+
         // Check if user is still logged in (in case they logged out elsewhere)
         if (!authManager.isLoggedIn()) {
             // User logged out, redirect to login
@@ -167,13 +167,14 @@ public class MainActivity extends AppCompatActivity {
             finish();
             return;
         }
-        
+
         // User is logged in, refresh notes
         // Only load if logged in and not already loading
         loadNotes();
         syncGeofencesFromBackend();
+        syncTemplateGeofencesFromBackend();
     }
-    
+
     private void setupRecyclerViews() {
         // Create a shared listener for all adapters
         NoteAdapter.OnNoteClickListener sharedListener = new NoteAdapter.OnNoteClickListener() {
@@ -300,51 +301,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Bottom Navigation click listeners
-        navHome.setOnClickListener(v -> {
-            // Scroll to top when on home page
-            androidx.core.widget.NestedScrollView scrollView = (androidx.core.widget.NestedScrollView)
-                ((android.view.ViewGroup) findViewById(R.id.main)).getChildAt(0);
-            if (scrollView != null) {
-                scrollView.smoothScrollTo(0, 0);
-            }
-        });
-
-        navFilter.setOnClickListener(v -> {
-            if (authManager.isLoggedIn()) {
-                Intent intent = new Intent(MainActivity.this, FilterOptionsActivity.class);
-                startActivity(intent);
-            } else {
-                Toast.makeText(MainActivity.this, "Please login to filter notes", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        navTemplates.setOnClickListener(v -> {
-            if (authManager.isLoggedIn()) {
-                Intent intent = new Intent(MainActivity.this, TemplateActivity.class);
-                startActivity(intent);
-            } else {
-                Toast.makeText(MainActivity.this, "Please login first", Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-                startActivity(intent);
-            }
-        });
-
-        navStats.setOnClickListener(v -> {
-            try {
-                if (authManager.isLoggedIn()) {
-                    Intent intent = new Intent(MainActivity.this, StatisticsActivity.class);
-                    startActivity(intent);
-                } else {
-                    Toast.makeText(MainActivity.this, "Please login first", Toast.LENGTH_SHORT).show();
-                    Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-                    startActivity(intent);
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Error opening statistics", e);
-                Toast.makeText(MainActivity.this, "Unable to open Statistics: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            }
-        });
+        // Bottom Navigation is handled by BottomNavigationHelper
     }
 
     private void setupSearch() {
@@ -409,9 +366,10 @@ public class MainActivity extends AppCompatActivity {
                 avatarText.setText(initial);
             }
         } else {
-            // User is not logged in - show login button
+            // User is not logged in - show login button and "Home" title
             loginButton.setVisibility(View.VISIBLE);
-            usernameDisplay.setVisibility(View.GONE);
+            usernameDisplay.setVisibility(View.VISIBLE);
+            usernameDisplay.setText("Home");
             if (avatarText != null) {
                 avatarText.setText("?");
             }
@@ -613,10 +571,14 @@ public class MainActivity extends AppCompatActivity {
                 if (distance[0] <= geofence.radiusMeters) {
                     Log.d(TAG, "✅ Within range of geofence " + geofence.geofenceId + " (distance: " + distance[0] + "m, radius: " + geofence.radiusMeters + "m)");
                     relevantNotesStore.addRelevantNote(noteId);
+                    // Also track the geofence ID for template matching
+                    activeGeofencesStore.addActiveGeofence(geofence.geofenceId);
                 } else {
                     Log.d(TAG, "❌ Outside range of geofence " + geofence.geofenceId + " (distance: " + distance[0] + "m, radius: " + geofence.radiusMeters + "m)");
                     // Remove note from relevant notes if it's now outside the range
                     relevantNotesStore.removeRelevantNote(noteId);
+                    // Also remove from active geofences
+                    activeGeofencesStore.removeActiveGeofence(geofence.geofenceId);
                 }
                 }
             } else {
@@ -679,6 +641,60 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFailure(@NonNull Call<List<GeofenceRegistrationResponse>> call, @NonNull Throwable t) {
                 Log.e(TAG, "Error fetching geofences", t);
+            }
+        });
+    }
+    
+    /**
+     * Sync template geofences from backend and register with device
+     * This allows us to detect when user enters a template's geofence
+     */
+    private void syncTemplateGeofencesFromBackend() {
+        Log.d(TAG, "Syncing template geofences from backend...");
+        
+        noteRepository.getAllTemplates(new NoteRepository.TemplatesCallback() {
+            @Override
+            public void onSuccess(List<com.example.anchornotes_team3.model.Template> templates) {
+                List<GeofenceManager.GeofenceData> templateGeofences = new ArrayList<>();
+                
+                for (com.example.anchornotes_team3.model.Template template : templates) {
+                    if (template.getGeofence() != null) {
+                        com.example.anchornotes_team3.model.Geofence geo = template.getGeofence();
+                        // Use template's geofence ID (format: same as note geofence ID)
+                        String geofenceId = geo.getId();
+                        
+                        templateGeofences.add(new GeofenceManager.GeofenceData(
+                            geofenceId,
+                            geo.getLatitude(),
+                            geo.getLongitude(),
+                            geo.getRadius().floatValue()
+                        ));
+                    }
+                }
+                
+                Log.d(TAG, "Found " + templateGeofences.size() + " template geofences");
+                
+                if (!templateGeofences.isEmpty()) {
+                    // Register template geofences with device
+                    geofenceManager.addGeofences(templateGeofences, new GeofenceManager.GeofenceCallback() {
+                        @Override
+                        public void onSuccess(String message) {
+                            Log.d(TAG, "Successfully synced " + templateGeofences.size() + " template geofences");
+                            // Check if we're currently near any template geofences
+                            checkProximityToGeofences(templateGeofences);
+                        }
+                        
+                        @Override
+                        public void onError(String error) {
+                            Log.e(TAG, "Failed to sync template geofences: " + error);
+                        }
+                    });
+                }
+            }
+            
+            @Override
+            public void onError(String error) {
+                Log.e(TAG, "Failed to fetch templates for geofence sync: " + error);
             }
         });
     }

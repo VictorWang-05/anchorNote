@@ -29,4 +29,5 @@ public class NoteResponse {
     private AttachmentResponse audio;
     private Boolean hasPhoto;
     private Boolean hasAudio;
+    private String backgroundColor;
 }

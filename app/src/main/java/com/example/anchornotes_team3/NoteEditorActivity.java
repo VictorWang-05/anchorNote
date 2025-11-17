@@ -103,10 +103,12 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private GeofenceManager geofenceManager;
     private GeocoderHelper geocoderHelper;
     private MenuItem pinMenuItem;
+    private MenuItem backgroundColorMenuItem;
     private List<Tag> availableTags = new ArrayList<>();
     private boolean isNewNote = true;
     private boolean isTemplateMode = false; // Flag to indicate if creating/editing a template
     private String editingTemplateId = null; // ID of template being edited (null if creating new)
+    private String templateBackgroundColor = "#FFFFFF"; // Current template background color
     
     // Formatting toggle support
     private FormattingTextWatcher formattingTextWatcher;
@@ -119,6 +121,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private boolean isAutoSaving = false;
     private String lastSavedTitle = "";
     private String lastSavedText = "";
+    private String lastSavedBackgroundColor = "#FFFFFF";
     private boolean hasUnsavedChanges = false;
 
     // Audio playback
@@ -146,7 +149,12 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        ThemeUtils.applySavedTheme(this);
+
+        // Force light mode for note editor only (doesn't affect other activities)
+        getDelegate().setLocalNightMode(
+            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+        );
+
         setContentView(R.layout.activity_note_editor);
 
         // Initialize repository and helpers
@@ -213,10 +221,43 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                 currentNote.setText(templateText != null ? templateText : "");
                 currentNote.setPinned(templatePinned);
                 
-                // Note: Tags and geofence are not passed via intent extras
-                // They will be empty when editing, which is fine - user can re-add them
-                // The template's tags/geofence will be preserved on the backend when updating
+                // Load tags from intent
+                ArrayList<String> tagIds = getIntent().getStringArrayListExtra("template_tag_ids");
+                ArrayList<String> tagNames = getIntent().getStringArrayListExtra("template_tag_names");
+                ArrayList<String> tagColors = getIntent().getStringArrayListExtra("template_tag_colors");
                 
+                if (tagIds != null && tagNames != null && tagColors != null && 
+                    tagIds.size() == tagNames.size() && tagIds.size() == tagColors.size()) {
+                    List<Tag> tags = new ArrayList<>();
+                    for (int i = 0; i < tagIds.size(); i++) {
+                        Tag tag = new Tag();
+                        tag.setId(tagIds.get(i));
+                        tag.setName(tagNames.get(i));
+                        tag.setColor(tagColors.get(i));
+                        tags.add(tag);
+                    }
+                    currentNote.setTags(tags);
+                }
+                
+                // Load geofence from intent
+                if (getIntent().hasExtra("template_geofence_id")) {
+                    Geofence geofence = new Geofence();
+                    geofence.setId(getIntent().getStringExtra("template_geofence_id"));
+                    geofence.setLatitude(getIntent().getDoubleExtra("template_geofence_lat", 0.0));
+                    geofence.setLongitude(getIntent().getDoubleExtra("template_geofence_lng", 0.0));
+                    geofence.setRadius(getIntent().getIntExtra("template_geofence_radius", 150));
+                    geofence.setAddressName(getIntent().getStringExtra("template_geofence_address"));
+                    currentNote.setGeofence(geofence);
+                }
+
+                // Load background color from intent
+                if (getIntent().hasExtra("template_background_color")) {
+                    templateBackgroundColor = getIntent().getStringExtra("template_background_color");
+                    if (templateBackgroundColor != null) {
+                        applyBackgroundColor(templateBackgroundColor);
+                    }
+                }
+
                 // Load template data into UI
                 loadNoteIntoUI();
                 
@@ -240,6 +281,22 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         } else {
             isNewNote = true;
             currentNote = new Note();
+            
+            // Check if this is being created from the example template
+            String templateContent = getIntent().getStringExtra("template_content");
+            String templateBgColor = getIntent().getStringExtra("template_background_color");
+            
+            if (templateContent != null) {
+                // Pre-fill content from example template
+                currentNote.setText(templateContent);
+            }
+            
+            if (templateBgColor != null) {
+                // Apply background color from example template
+                currentNote.setBackgroundColor(templateBgColor);
+                applyBackgroundColor(templateBgColor);
+            }
+            
             loadNoteIntoUI();
         }
     }
@@ -792,7 +849,17 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
 
         // Update pin icon in menu
         updatePinIcon();
-        
+
+        // Apply background color if available
+        if (currentNote.getBackgroundColor() != null && !currentNote.getBackgroundColor().isEmpty()) {
+            templateBackgroundColor = currentNote.getBackgroundColor();
+            applyBackgroundColor(currentNote.getBackgroundColor());
+        } else {
+            // No custom color - set to white as default
+            templateBackgroundColor = "#FFFFFF";
+            applyBackgroundColor("#FFFFFF");
+        }
+
         // Track last saved state for change detection
         updateLastSavedState();
     }
@@ -803,6 +870,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private void updateLastSavedState() {
         lastSavedTitle = currentNote.getTitle() != null ? currentNote.getTitle() : "";
         lastSavedText = currentNote.getText() != null ? currentNote.getText() : "";
+        lastSavedBackgroundColor = templateBackgroundColor != null ? templateBackgroundColor : "#FFFFFF";
         hasUnsavedChanges = false;
     }
     
@@ -817,12 +885,14 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         
         String currentTitle = etTitle.getText() != null ? etTitle.getText().toString().trim() : "";
         String currentText = etBody.getText() != null ? MarkdownConverter.toMarkdown(etBody.getText()) : "";
+        String currentBgColor = templateBackgroundColor != null ? templateBackgroundColor : "#FFFFFF";
         
-        // Check if title or text has changed
+        // Check if title, text, or background color has changed
         boolean titleChanged = !currentTitle.equals(lastSavedTitle);
         boolean textChanged = !currentText.equals(lastSavedText);
+        boolean colorChanged = !currentBgColor.equals(lastSavedBackgroundColor);
         
-        return titleChanged || textChanged;
+        return titleChanged || textChanged || colorChanged;
     }
     
     /**
@@ -849,10 +919,11 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         }
         
         isAutoSaving = true;
-        android.util.Log.d("NoteEditor", "💾 Auto-saving note...");
+        android.util.Log.d("NoteEditor", "💾 Auto-saving note (including background color: " + templateBackgroundColor + ")...");
         
         currentNote.setTitle(title);
         currentNote.setText(text);
+        currentNote.setBackgroundColor(templateBackgroundColor); // Auto-save background color too
         
         if (isNewNote) {
             // Create new note
@@ -1361,6 +1432,98 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             }
         });
     }
+    
+    /**
+     * Register template geofence with device if template has a geofence
+     * This allows the app to detect when user enters the template's location
+     */
+    private void registerTemplateGeofenceIfNeeded(com.example.anchornotes_team3.model.Template template) {
+        if (template.getGeofence() == null) {
+            android.util.Log.d("NoteEditor", "No geofence on template, skipping registration");
+            return;
+        }
+        
+        Geofence geo = template.getGeofence();
+        
+        // Check location permission
+        boolean hasPermission = ContextCompat.checkSelfPermission(this, 
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        
+        if (!hasPermission) {
+            android.util.Log.w("NoteEditor", "No location permission to register template geofence");
+            return;
+        }
+        
+        // Register geofence with device
+        geofenceManager.addGeofence(
+            geo.getId(),  // Use geofence ID directly (e.g., "template_123")
+            geo.getLatitude(),
+            geo.getLongitude(),
+            geo.getRadius().floatValue(),
+            new GeofenceManager.GeofenceCallback() {
+                @Override
+                public void onSuccess(String message) {
+                    android.util.Log.d("NoteEditor", "✅ Template geofence registered: " + geo.getId());
+                    
+                    // Check if user is currently inside this geofence
+                    // GeofenceReceiver only fires on ENTER/EXIT, not when registering
+                    // So we need to manually check proximity
+                    checkIfInsideGeofence(geo);
+                }
+                
+                @Override
+                public void onError(String error) {
+                    android.util.Log.e("NoteEditor", "❌ Failed to register template geofence: " + error);
+                }
+            }
+        );
+    }
+    
+    /**
+     * Check if user is currently inside a geofence and update ActiveGeofencesStore
+     * This is needed because GeofenceReceiver only fires on transitions, not when already inside
+     */
+    private void checkIfInsideGeofence(Geofence geofence) {
+        if (geofence == null) return;
+        
+        // Check location permission
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) 
+                != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        
+        // Get current location
+        com.google.android.gms.location.FusedLocationProviderClient fusedLocationClient = 
+            com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(this);
+        
+        fusedLocationClient.getCurrentLocation(
+            com.google.android.gms.location.Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+            null
+        ).addOnSuccessListener(location -> {
+            if (location != null) {
+                // Calculate distance to geofence center
+                float[] distance = new float[1];
+                android.location.Location.distanceBetween(
+                    location.getLatitude(), 
+                    location.getLongitude(),
+                    geofence.getLatitude(), 
+                    geofence.getLongitude(), 
+                    distance
+                );
+                
+                // If within radius, add to ActiveGeofencesStore
+                if (distance[0] <= geofence.getRadius()) {
+                    android.util.Log.d("NoteEditor", "✅ User is inside template geofence! Distance: " + distance[0] + "m, Radius: " + geofence.getRadius() + "m");
+                    com.example.anchornotes_team3.store.ActiveGeofencesStore.getInstance(this)
+                        .addActiveGeofence(geofence.getId());
+                } else {
+                    android.util.Log.d("NoteEditor", "❌ User is outside template geofence. Distance: " + distance[0] + "m, Radius: " + geofence.getRadius() + "m");
+                }
+            }
+        }).addOnFailureListener(e -> {
+            android.util.Log.e("NoteEditor", "Failed to get current location for proximity check", e);
+        });
+    }
 
     /**
      * Clear location (geofence) only
@@ -1368,6 +1531,14 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private void clearLocation() {
         String noteId = currentNote.getId();
         boolean hasGeofence = currentNote.hasGeofence();
+        
+        // For templates, just clear locally - it will be saved when user clicks save
+        if (isTemplateMode) {
+            currentNote.clearGeofence();
+            updateLocationChip();
+            Toast.makeText(this, R.string.location_removed, Toast.LENGTH_SHORT).show();
+            return;
+        }
         
         if (noteId != null && hasGeofence) {
             // Note exists on backend - clear geofence
@@ -1689,6 +1860,13 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_note_editor, menu);
         pinMenuItem = menu.findItem(R.id.action_pin);
+        backgroundColorMenuItem = menu.findItem(R.id.action_background_color);
+
+        // Show background color button for both notes and templates
+        if (backgroundColorMenuItem != null) {
+            backgroundColorMenuItem.setVisible(true);
+        }
+
         updatePinIcon();
         return true;
     }
@@ -1696,7 +1874,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
-        
+
         if (id == R.id.action_save) {
             saveNote();
             return true;
@@ -1706,8 +1884,11 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         } else if (id == R.id.action_discard) {
             showDiscardDialog();
             return true;
+        } else if (id == R.id.action_background_color) {
+            showColorPicker();
+            return true;
         }
-        
+
         return super.onOptionsItemSelected(item);
     }
 
@@ -1722,8 +1903,10 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
 
         currentNote.setTitle(title);
         currentNote.setText(markdown);
+        currentNote.setBackgroundColor(templateBackgroundColor); // Sync background color
 
         android.util.Log.d("NoteEditor", "🚀 Attempting to save note: " + title);
+        android.util.Log.d("NoteEditor", "🎨 Background color: " + templateBackgroundColor);
         android.util.Log.d("NoteEditor", "📝 Is new note: " + isNewNote);
         android.util.Log.d("NoteEditor", "📋 Is template mode: " + isTemplateMode);
         android.util.Log.d("NoteEditor", "📋 Editing template ID: " + editingTemplateId);
@@ -1739,30 +1922,79 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
             template.setPinned(currentNote.isPinned());
             template.setTags(currentNote.getTags() != null ? currentNote.getTags() : new ArrayList<>());
             template.setGeofence(currentNote.getGeofence());
+            template.setBackgroundColor(templateBackgroundColor);
             // Note: Attachments are not copied to templates - templates are blueprints for content
             
             if (editingTemplateId != null) {
-                // Update existing template
-                repository.updateTemplate(editingTemplateId, template, new NoteRepository.TemplateCallback() {
-                    @Override
-                    public void onSuccess(com.example.anchornotes_team3.model.Template updatedTemplate) {
-                        android.util.Log.d("NoteEditor", "✅ Template updated successfully! ID: " + updatedTemplate.getId());
-                        Toast.makeText(NoteEditorActivity.this, "Template updated successfully", Toast.LENGTH_SHORT).show();
-                        finish();
-                    }
-                    
-                    @Override
-                    public void onError(String error) {
-                        android.util.Log.e("NoteEditor", "❌ Failed to update template: " + error);
-                        Toast.makeText(NoteEditorActivity.this, "Failed to update template: " + error, Toast.LENGTH_LONG).show();
-                    }
-                });
+                // Check if geofence was removed (was present initially, now null)
+                // Backend's updateTemplate doesn't handle null geofence (it ignores it instead of clearing)
+                // Workaround: Delete old template and create new one to ensure geofence is cleared
+                boolean geofenceWasRemoved = getIntent().hasExtra("template_geofence_id") && currentNote.getGeofence() == null;
+                
+                if (geofenceWasRemoved) {
+                    android.util.Log.d("NoteEditor", "⚠️ Geofence was removed - using delete+create workaround");
+                    // Delete old template first
+                    repository.deleteTemplate(editingTemplateId, new NoteRepository.SimpleCallback() {
+                        @Override
+                        public void onSuccess() {
+                            // Create new template without geofence
+                            repository.createTemplate(template, new NoteRepository.TemplateCallback() {
+                                @Override
+                                public void onSuccess(com.example.anchornotes_team3.model.Template createdTemplate) {
+                                    android.util.Log.d("NoteEditor", "✅ Template recreated successfully! ID: " + createdTemplate.getId());
+                                    
+                                    // Register template geofence with device if present (shouldn't be, but just in case)
+                                    registerTemplateGeofenceIfNeeded(createdTemplate);
+                                    
+                                    Toast.makeText(NoteEditorActivity.this, "Template updated successfully", Toast.LENGTH_SHORT).show();
+                                    finish();
+                                }
+                                
+                                @Override
+                                public void onError(String error) {
+                                    android.util.Log.e("NoteEditor", "❌ Failed to recreate template: " + error);
+                                    Toast.makeText(NoteEditorActivity.this, "Failed to update template: " + error, Toast.LENGTH_LONG).show();
+                                }
+                            });
+                        }
+                        
+                        @Override
+                        public void onError(String error) {
+                            android.util.Log.e("NoteEditor", "❌ Failed to delete old template: " + error);
+                            Toast.makeText(NoteEditorActivity.this, "Failed to update template: " + error, Toast.LENGTH_LONG).show();
+                        }
+                    });
+                } else {
+                    // Normal update
+                    repository.updateTemplate(editingTemplateId, template, new NoteRepository.TemplateCallback() {
+                        @Override
+                        public void onSuccess(com.example.anchornotes_team3.model.Template updatedTemplate) {
+                            android.util.Log.d("NoteEditor", "✅ Template updated successfully! ID: " + updatedTemplate.getId());
+                            
+                            // Register template geofence with device if present
+                            registerTemplateGeofenceIfNeeded(updatedTemplate);
+                            
+                            Toast.makeText(NoteEditorActivity.this, "Template updated successfully", Toast.LENGTH_SHORT).show();
+                            finish();
+                        }
+                        
+                        @Override
+                        public void onError(String error) {
+                            android.util.Log.e("NoteEditor", "❌ Failed to update template: " + error);
+                            Toast.makeText(NoteEditorActivity.this, "Failed to update template: " + error, Toast.LENGTH_LONG).show();
+                        }
+                    });
+                }
             } else {
                 // Create new template
                 repository.createTemplate(template, new NoteRepository.TemplateCallback() {
                     @Override
                     public void onSuccess(com.example.anchornotes_team3.model.Template createdTemplate) {
                         android.util.Log.d("NoteEditor", "✅ Template saved successfully! ID: " + createdTemplate.getId());
+                        
+                        // Register template geofence with device if present
+                        registerTemplateGeofenceIfNeeded(createdTemplate);
+                        
                         Toast.makeText(NoteEditorActivity.this, "Template saved successfully", Toast.LENGTH_SHORT).show();
                         finish();
                     }
@@ -1785,6 +2017,9 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                 public void onSuccess(Note note) {
                     android.util.Log.d("NoteEditor", "✅ Note saved successfully! ID: " + note.getId());
                     
+                    // Preserve local state before replacing currentNote
+                    Instant localReminder = currentNote.getReminderTime();
+                    Geofence localGeofence = currentNote.getGeofence();
                     // Preserve local attachments before replacing currentNote
                     List<Attachment> localAttachments = new ArrayList<>(currentNote.getAttachments());
                     android.util.Log.d("NoteEditor", "💾 Preserving " + localAttachments.size() + " local attachments");
@@ -1797,6 +2032,14 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                         currentNote.addAttachment(attachment);
                     }
                     android.util.Log.d("NoteEditor", "💾 Restored attachments. Total: " + currentNote.getAttachments().size());
+                    
+                    // Restore local reminder/geofence so they get persisted in saveRemindersAndAttachments()
+                    if (localReminder != null) {
+                        currentNote.setReminderTime(localReminder);
+                    }
+                    if (localGeofence != null) {
+                        currentNote.setGeofence(localGeofence);
+                    }
                     
                     // After creating note, save reminders and attachments
                     int uploads = saveRemindersAndAttachments();
@@ -2205,11 +2448,125 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         super.onPause();
         // Stop playback when activity is paused
         stopAudioPlayback();
-        
+
         // Auto-save when leaving the activity (e.g., going to home screen or another app)
         if (hasUnsavedChanges()) {
             android.util.Log.d("NoteEditor", "⏸️ Pausing - auto-saving before background");
             autoSaveNote();
+        }
+    }
+
+    /**
+     * Show color picker dialog for template background
+     */
+    private void showColorPicker() {
+        // Check if a custom color is already applied (not white/default)
+        boolean hasCustomColor = templateBackgroundColor != null && 
+                                 !templateBackgroundColor.equalsIgnoreCase("#FFFFFF");
+        
+        // If a custom color is already applied, show choice dialog first
+        if (hasCustomColor) {
+            AlertDialog.Builder choiceBuilder = new AlertDialog.Builder(this);
+            choiceBuilder.setTitle("Background Color");
+            choiceBuilder.setMessage("What would you like to do?");
+            
+            // Option 1: Change to a different color
+            choiceBuilder.setPositiveButton("Change Color", (dialog, which) -> {
+                showColorPickerDialog();
+            });
+            
+            // Option 2: Remove current color (revert to default)
+            choiceBuilder.setNeutralButton("Remove Color", (dialog, which) -> {
+                // Reset to default white color (instead of null, to work with existing backend)
+                templateBackgroundColor = "#FFFFFF";
+                if (currentNote != null) {
+                    currentNote.setBackgroundColor("#FFFFFF");
+                }
+                // Apply default white color
+                applyBackgroundColor("#FFFFFF");
+                Toast.makeText(NoteEditorActivity.this, "Background color removed", Toast.LENGTH_SHORT).show();
+                
+                android.util.Log.d("NoteEditor", "Color removed, reverted to white (#FFFFFF)");
+            });
+            
+            choiceBuilder.setNegativeButton("Cancel", null);
+            choiceBuilder.show();
+        } else {
+            // No custom color yet, show color picker directly
+            showColorPickerDialog();
+        }
+    }
+    
+    /**
+     * Show the actual color picker dialog
+     */
+    private void showColorPickerDialog() {
+        // Get current color, default to white if none set
+        String currentColorHex = templateBackgroundColor != null ? templateBackgroundColor : "#FFFFFF";
+        int currentColor;
+        try {
+            currentColor = android.graphics.Color.parseColor(currentColorHex);
+        } catch (Exception e) {
+            currentColor = android.graphics.Color.WHITE;
+        }
+
+        // Create and show Material Color Picker Dialog
+        com.github.dhaval2404.colorpicker.MaterialColorPickerDialog colorPicker = 
+            new com.github.dhaval2404.colorpicker.MaterialColorPickerDialog
+                .Builder(this)
+                .setTitle("Choose Background Color")
+                .setColorShape(com.github.dhaval2404.colorpicker.model.ColorShape.CIRCLE)
+                .setDefaultColor(currentColor)
+                .setColorListener(new com.github.dhaval2404.colorpicker.listener.ColorListener() {
+                    @Override
+                    public void onColorSelected(int color, String colorHex) {
+                        // Store and apply the selected color
+                        templateBackgroundColor = colorHex;
+                        if (currentNote != null) {
+                            currentNote.setBackgroundColor(colorHex);
+                        }
+                        applyBackgroundColor(colorHex);
+                        Toast.makeText(NoteEditorActivity.this, "Background color set", Toast.LENGTH_SHORT).show();
+                        
+                        android.util.Log.d("NoteEditor", "✅ Color selected: " + colorHex);
+                    }
+                })
+                .build();
+        
+        colorPicker.show();
+    }
+
+    /**
+     * Apply background color to the editor
+     */
+    private void applyBackgroundColor(String colorHex) {
+        try {
+            int color = android.graphics.Color.parseColor(colorHex);
+            
+            // Apply to the CoordinatorLayout (root container)
+            View rootView = findViewById(android.R.id.content);
+            if (rootView != null) {
+                rootView.setBackgroundColor(color);
+            }
+            
+            // Apply to the NestedScrollView (main content area)
+            if (nestedScrollView != null) {
+                nestedScrollView.setBackgroundColor(color);
+            }
+            
+            // Apply to AppBarLayout and Toolbar to match
+            View appBar = findViewById(R.id.app_bar);
+            if (appBar != null) {
+                appBar.setBackgroundColor(color);
+            }
+            
+            if (toolbar != null) {
+                toolbar.setBackgroundColor(color);
+            }
+            
+            android.util.Log.d("NoteEditor", "✅ Applied background color: " + colorHex);
+        } catch (Exception e) {
+            android.util.Log.e("NoteEditor", "Failed to apply background color", e);
         }
     }
 }

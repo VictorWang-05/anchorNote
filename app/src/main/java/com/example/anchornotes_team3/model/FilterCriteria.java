@@ -16,6 +16,9 @@ public class FilterCriteria implements Parcelable {
     private Boolean hasPhoto;
     private Boolean hasAudio;
     private Boolean hasLocation;
+    // Optional last-edited range (epoch millis, inclusive)
+    private Long lastEditedFromMs;
+    private Long lastEditedToMs;
 
     public FilterCriteria() {
         this.tagIds = new ArrayList<>();
@@ -23,6 +26,8 @@ public class FilterCriteria implements Parcelable {
         this.hasPhoto = null;
         this.hasAudio = null;
         this.hasLocation = null;
+        this.lastEditedFromMs = null;
+        this.lastEditedToMs = null;
     }
 
     protected FilterCriteria(Parcel in) {
@@ -35,6 +40,8 @@ public class FilterCriteria implements Parcelable {
         hasAudio = tmpHasAudio == 0 ? null : (tmpHasAudio == 1);
         byte tmpHasLocation = in.readByte();
         hasLocation = tmpHasLocation == 0 ? null : (tmpHasLocation == 1);
+        lastEditedFromMs = (Long) in.readValue(Long.class.getClassLoader());
+        lastEditedToMs = (Long) in.readValue(Long.class.getClassLoader());
     }
 
     public static final Creator<FilterCriteria> CREATOR = new Creator<FilterCriteria>() {
@@ -89,12 +96,30 @@ public class FilterCriteria implements Parcelable {
         this.hasLocation = hasLocation;
     }
 
+    public Long getLastEditedFromMs() {
+        return lastEditedFromMs;
+    }
+
+    public void setLastEditedFromMs(Long lastEditedFromMs) {
+        this.lastEditedFromMs = lastEditedFromMs;
+    }
+
+    public Long getLastEditedToMs() {
+        return lastEditedToMs;
+    }
+
+    public void setLastEditedToMs(Long lastEditedToMs) {
+        this.lastEditedToMs = lastEditedToMs;
+    }
+
     public boolean isEmpty() {
         return (tagIds == null || tagIds.isEmpty()) &&
                 pinned == null &&
                 hasPhoto == null &&
                 hasAudio == null &&
-                hasLocation == null;
+                hasLocation == null &&
+                lastEditedFromMs == null &&
+                lastEditedToMs == null;
     }
 
     @Override
@@ -109,5 +134,7 @@ public class FilterCriteria implements Parcelable {
         dest.writeByte((byte) (hasPhoto == null ? 0 : hasPhoto ? 1 : 2));
         dest.writeByte((byte) (hasAudio == null ? 0 : hasAudio ? 1 : 2));
         dest.writeByte((byte) (hasLocation == null ? 0 : hasLocation ? 1 : 2));
+        dest.writeValue(lastEditedFromMs);
+        dest.writeValue(lastEditedToMs);
     }
 }

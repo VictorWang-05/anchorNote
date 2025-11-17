@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat;
 import com.example.anchornotes_team3.MainActivity;
 import com.example.anchornotes_team3.R;
 import com.example.anchornotes_team3.store.RelevantNotesStore;
+import com.example.anchornotes_team3.store.ActiveGeofencesStore;
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingEvent;
 
@@ -54,8 +55,9 @@ public class GeofenceReceiver extends BroadcastReceiver {
             return;
         }
 
-        // Get RelevantNotesStore instance
-        RelevantNotesStore store = RelevantNotesStore.getInstance(context);
+        // Get store instances
+        RelevantNotesStore notesStore = RelevantNotesStore.getInstance(context);
+        ActiveGeofencesStore geofencesStore = ActiveGeofencesStore.getInstance(context);
 
         // Process each triggered geofence
         for (Geofence geofence : triggeringGeofences) {
@@ -72,12 +74,16 @@ public class GeofenceReceiver extends BroadcastReceiver {
             switch (transitionType) {
                 case Geofence.GEOFENCE_TRANSITION_ENTER:
                     handleGeofenceEnter(context, noteId);
-                    store.addRelevantNote(noteId);
+                    notesStore.addRelevantNote(noteId);
+                    // Also track the geofence ID itself for template matching
+                    geofencesStore.addActiveGeofence(geofenceId);
                     break;
 
                 case Geofence.GEOFENCE_TRANSITION_EXIT:
                     handleGeofenceExit(context, noteId);
-                    store.removeRelevantNote(noteId);
+                    notesStore.removeRelevantNote(noteId);
+                    // Remove from active geofences
+                    geofencesStore.removeActiveGeofence(geofenceId);
                     break;
 
                 default:

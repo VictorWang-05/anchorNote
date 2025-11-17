@@ -18,4 +18,5 @@ public class UpdateTemplateRequest {
     private Boolean pinned;
     private List<Long> tagIds;
     private GeofenceRequest geofence;
+    private String backgroundColor;
 }

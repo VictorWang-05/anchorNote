@@ -1,5 +1,6 @@
 package com.example.anchornotes_team3.adapter;
 
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -135,7 +136,35 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
             if (note == null) {
                 return;
             }
-            
+
+            // Apply background color if available
+            if (itemView instanceof androidx.cardview.widget.CardView) {
+                androidx.cardview.widget.CardView cardView = (androidx.cardview.widget.CardView) itemView;
+
+                // Check if dark mode is enabled
+                int nightModeFlags = itemView.getContext().getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+                boolean isDarkMode = nightModeFlags == Configuration.UI_MODE_NIGHT_YES;
+
+                if (isDarkMode) {
+                    // In dark mode, always use black background on home screen
+                    cardView.setCardBackgroundColor(Color.BLACK);
+                } else {
+                    // In light mode, use the note's custom background color
+                    if (note.getBackgroundColor() != null && !note.getBackgroundColor().isEmpty()) {
+                        try {
+                            int color = Color.parseColor(note.getBackgroundColor());
+                            cardView.setCardBackgroundColor(color);
+                        } catch (Exception e) {
+                            // Use default background if parsing fails
+                            cardView.setCardBackgroundColor(itemView.getContext().getResources().getColor(R.color.note_card_beige, null));
+                        }
+                    } else {
+                        // Use default background
+                        cardView.setCardBackgroundColor(itemView.getContext().getResources().getColor(R.color.note_card_beige, null));
+                    }
+                }
+            }
+
             // Set title
             String title = note.getTitle();
             if (title == null || title.trim().isEmpty()) {
