@@ -74,4 +74,5 @@ dependencies {
     // Testing - Instrumented Tests (Espresso)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
+    androidTestImplementation("androidx.test.espresso:espresso-contrib:3.7.0")
 }
