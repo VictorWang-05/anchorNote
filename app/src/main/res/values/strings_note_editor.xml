@@ -17,6 +17,9 @@
     
     <!-- Drawing -->
     <string name="drawing_title">Drawing</string>
+    <string name="drawing_pen">Pen</string>
+    <string name="drawing_eraser">Eraser</string>
+    <string name="drawing_color">Color</string>
     
     <!-- Chips -->
     <string name="chip_add_tag">+ Tag</string>

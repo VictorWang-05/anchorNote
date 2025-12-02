@@ -2,6 +2,7 @@ package com.example.anchornotes_team3;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.Menu;
@@ -14,6 +15,7 @@ import androidx.core.content.FileProvider;
 
 import com.example.anchornotes_team3.view.DrawingView;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -25,10 +27,14 @@ import java.util.Locale;
 /**
  * Activity for drawing on a canvas.
  * Allows users to create freehand drawings that are saved as images.
+ * Supports pen mode with color selection and eraser mode.
  */
 public class DrawingActivity extends AppCompatActivity {
 
     private DrawingView drawingView;
+    private MaterialButton btnPen;
+    private MaterialButton btnEraser;
+    private MaterialButton btnColor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,12 +43,92 @@ public class DrawingActivity extends AppCompatActivity {
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         drawingView = findViewById(R.id.drawing_view);
+        btnPen = findViewById(R.id.btn_pen);
+        btnEraser = findViewById(R.id.btn_eraser);
+        btnColor = findViewById(R.id.btn_color);
 
         setSupportActionBar(toolbar);
         toolbar.setNavigationOnClickListener(v -> {
             setResult(RESULT_CANCELED);
             finish();
         });
+
+        setupDrawingTools();
+        updateToolButtonStates();
+    }
+
+    /**
+     * Setup click listeners for drawing tool buttons
+     */
+    private void setupDrawingTools() {
+        // Pen button - switches to pen mode
+        btnPen.setOnClickListener(v -> {
+            drawingView.setDrawingMode(DrawingView.DrawingMode.PEN);
+            updateToolButtonStates();
+        });
+
+        // Eraser button - switches to eraser mode
+        btnEraser.setOnClickListener(v -> {
+            drawingView.setDrawingMode(DrawingView.DrawingMode.ERASER);
+            updateToolButtonStates();
+        });
+
+        // Color button - shows color picker
+        btnColor.setOnClickListener(v -> showColorPicker());
+    }
+
+    /**
+     * Update button appearances to reflect current tool
+     */
+    private void updateToolButtonStates() {
+        boolean isPenMode = drawingView.getDrawingMode() == DrawingView.DrawingMode.PEN;
+        
+        // Highlight active tool
+        if (isPenMode) {
+            btnPen.setIconTint(android.content.res.ColorStateList.valueOf(
+                    getResources().getColor(R.color.orange_primary, null)));
+            btnPen.setTextColor(getResources().getColor(R.color.orange_primary, null));
+            btnEraser.setIconTint(android.content.res.ColorStateList.valueOf(
+                    getResources().getColor(R.color.text_dark, null)));
+            btnEraser.setTextColor(getResources().getColor(R.color.text_dark, null));
+        } else {
+            btnEraser.setIconTint(android.content.res.ColorStateList.valueOf(
+                    getResources().getColor(R.color.orange_primary, null)));
+            btnEraser.setTextColor(getResources().getColor(R.color.orange_primary, null));
+            btnPen.setIconTint(android.content.res.ColorStateList.valueOf(
+                    getResources().getColor(R.color.text_dark, null)));
+            btnPen.setTextColor(getResources().getColor(R.color.text_dark, null));
+        }
+
+        // Update color button icon color to match current pen color
+        btnColor.setIconTint(android.content.res.ColorStateList.valueOf(
+                drawingView.getPenColor()));
+    }
+
+    /**
+     * Show color picker dialog using MaterialColorPickerDialog
+     */
+    private void showColorPicker() {
+        int currentColor = drawingView.getPenColor();
+
+        com.github.dhaval2404.colorpicker.MaterialColorPickerDialog colorPicker = 
+            new com.github.dhaval2404.colorpicker.MaterialColorPickerDialog
+                .Builder(this)
+                .setTitle("Choose Pen Color")
+                .setColorShape(com.github.dhaval2404.colorpicker.model.ColorShape.CIRCLE)
+                .setDefaultColor(currentColor)
+                .setColorListener(new com.github.dhaval2404.colorpicker.listener.ColorListener() {
+                    @Override
+                    public void onColorSelected(int color, String colorHex) {
+                        drawingView.setPenColor(color);
+                        // Switch to pen mode when color is selected
+                        drawingView.setDrawingMode(DrawingView.DrawingMode.PEN);
+                        updateToolButtonStates();
+                    }
+                })
+                .build();
+        
+        colorPicker.show();
     }
 
     @Override

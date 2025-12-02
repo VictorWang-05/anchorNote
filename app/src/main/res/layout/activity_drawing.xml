@@ -18,7 +18,67 @@
         android:id="@+id/drawing_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginTop="?attr/actionBarSize" />
+        android:layout_marginTop="?attr/actionBarSize"
+        android:layout_marginBottom="64dp" />
+
+    <!-- Bottom drawing tools menu -->
+    <LinearLayout
+        android:id="@+id/drawing_tools_menu"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:layout_gravity="bottom"
+        android:background="@color/note_card_beige"
+        android:orientation="horizontal"
+        android:elevation="8dp"
+        android:padding="8dp"
+        android:gravity="center">
+
+        <!-- Pen Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_pen"
+            style="@style/Widget.Material3.Button.TextButton.Icon"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/drawing_pen"
+            app:icon="@android:drawable/ic_menu_edit"
+            app:iconGravity="top"
+            app:iconTint="@color/orange_primary"
+            android:textSize="12sp"
+            android:textColor="@color/orange_primary"
+            android:padding="4dp" />
+
+        <!-- Eraser Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_eraser"
+            style="@style/Widget.Material3.Button.TextButton.Icon"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/drawing_eraser"
+            app:icon="@android:drawable/ic_menu_revert"
+            app:iconGravity="top"
+            app:iconTint="@color/text_dark"
+            android:textSize="12sp"
+            android:textColor="@color/text_dark"
+            android:padding="4dp" />
+
+        <!-- Color Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_color"
+            style="@style/Widget.Material3.Button.TextButton.Icon"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/drawing_color"
+            app:icon="@android:drawable/ic_dialog_info"
+            app:iconGravity="top"
+            app:iconTint="@android:color/black"
+            android:textSize="12sp"
+            android:textColor="@color/text_dark"
+            android:padding="4dp" />
+
+    </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
