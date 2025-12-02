@@ -182,20 +182,25 @@ public class MainActivity extends AppCompatActivity {
             public void onNoteClick(Note note) {
                 openNote(note);
             }
-            
+
             @Override
             public void onAddTagClick(Note note) {
                 showAddTagDialog(note);
             }
-            
+
             @Override
             public void onDeleteClick(Note note) {
                 confirmDeleteNote(note);
             }
-            
+
             @Override
             public void onPinClick(Note note) {
                 togglePinNote(note);
+            }
+
+            @Override
+            public void onExportClick(Note note) {
+                exportNoteToPdf(note);
             }
         };
         
@@ -507,8 +512,25 @@ public class MainActivity extends AppCompatActivity {
     }
     
     private void updateEmptyStates(List<Note> pinned, List<Note> relevant, List<Note> all) {
-        pinnedEmpty.setVisibility(pinned.isEmpty() ? View.VISIBLE : View.GONE);
-        relevantNotesEmpty.setVisibility(relevant.isEmpty() ? View.VISIBLE : View.GONE);
+        // Show/hide pinned RecyclerView and empty message
+        if (pinned.isEmpty()) {
+            pinnedRecyclerView.setVisibility(View.GONE);
+            pinnedEmpty.setVisibility(View.VISIBLE);
+        } else {
+            pinnedRecyclerView.setVisibility(View.VISIBLE);
+            pinnedEmpty.setVisibility(View.GONE);
+        }
+
+        // Show/hide relevant notes RecyclerView and empty message
+        if (relevant.isEmpty()) {
+            relevantRecyclerView.setVisibility(View.GONE);
+            relevantNotesEmpty.setVisibility(View.VISIBLE);
+        } else {
+            relevantRecyclerView.setVisibility(View.VISIBLE);
+            relevantNotesEmpty.setVisibility(View.GONE);
+        }
+
+        // Show/hide all notes empty message (RecyclerView always visible)
         allNotesEmpty.setVisibility(all.isEmpty() ? View.VISIBLE : View.GONE);
     }
     
@@ -1207,10 +1229,10 @@ public class MainActivity extends AppCompatActivity {
         if (note == null || note.getId() == null) {
             return;
         }
-        
+
         // Toggle pin status
         boolean newPinStatus = !note.isPinned();
-        
+
         noteRepository.pinNote(note.getId(), newPinStatus, new NoteRepository.NoteCallback() {
             @Override
             public void onSuccess(Note updatedNote) {
@@ -1219,11 +1241,51 @@ public class MainActivity extends AppCompatActivity {
                 // Refresh notes to update sections
                 loadNotes();
             }
-            
+
             @Override
             public void onError(String error) {
                 Toast.makeText(MainActivity.this, "Failed to " + (newPinStatus ? "pin" : "unpin") + " note: " + error, Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void exportNoteToPdf(Note note) {
+        if (note == null) {
+            Toast.makeText(this, "Cannot export note", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Check if we need to request storage permission (Android 10 and below)
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                androidx.core.app.ActivityCompat.requestPermissions(this,
+                        new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 200);
+                return;
+            }
+        }
+
+        Toast.makeText(this, "Exporting note to PDF...", Toast.LENGTH_SHORT).show();
+
+        // Export to PDF
+        com.example.anchornotes.team3.util.PdfExportHelper.exportNoteToPdf(
+                this,
+                note,
+                new com.example.anchornotes.team3.util.PdfExportHelper.ExportCallback() {
+                    @Override
+                    public void onSuccess(java.io.File pdfFile) {
+                        if (pdfFile != null) {
+                            android.util.Log.d("MainActivity", "📄 PDF exported: " + pdfFile.getAbsolutePath());
+                        } else {
+                            android.util.Log.d("MainActivity", "📄 PDF exported successfully");
+                        }
+                        // Success toast is already shown by PdfExportHelper
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        android.util.Log.e("MainActivity", "❌ PDF export failed: " + error);
+                    }
+                });
     }
 }

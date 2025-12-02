@@ -98,6 +98,20 @@
                 android:textColor="@color/accent_blue"
                 android:contentDescription="@string/add_tag" />
 
+            <!-- Export to PDF Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/exportButton"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:minWidth="0dp"
+                android:padding="8dp"
+                android:text="📄"
+                android:textSize="16sp"
+                android:textColor="@color/accent_blue"
+                android:contentDescription="Export to PDF" />
+
             <!-- Delete Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/deleteButton"

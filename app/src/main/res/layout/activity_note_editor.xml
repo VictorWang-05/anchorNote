@@ -20,7 +20,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/background_beige"
-            app:navigationIcon="@android:drawable/ic_menu_revert"
+            app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"
             app:navigationContentDescription="@string/cd_back"
             app:titleTextColor="@color/text_dark"
             app:menu="@menu/menu_note_editor"
@@ -313,6 +313,22 @@
             android:insetTop="0dp"
             android:insetBottom="0dp"
             app:icon="@android:drawable/ic_btn_speak_now"
+            app:iconGravity="textStart"
+            app:iconTint="@color/orange_primary"
+            app:iconSize="20dp"
+            app:cornerRadius="4dp" />
+
+        <!-- Add Drawing -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_add_drawing"
+            style="@style/Widget.Material3.Button.TextButton.Icon"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:minWidth="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            app:icon="@android:drawable/ic_menu_edit"
             app:iconGravity="textStart"
             app:iconTint="@color/orange_primary"
             app:iconSize="20dp"

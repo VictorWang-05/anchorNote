@@ -41,6 +41,7 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
         void onAddTagClick(Note note);
         void onDeleteClick(Note note);
         void onPinClick(Note note);
+        void onExportClick(Note note);
     }
     
     public void setOnNoteClickListener(OnNoteClickListener listener) {
@@ -119,6 +120,7 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
         private final com.google.android.material.button.MaterialButton addTagButton;
         private final com.google.android.material.button.MaterialButton deleteButton;
         private final com.google.android.material.button.MaterialButton pinButton;
+        private final com.google.android.material.button.MaterialButton exportButton;
         private final boolean isHorizontal;
 
         public NoteViewHolder(@NonNull View itemView, boolean isHorizontal) {
@@ -130,6 +132,7 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
             addTagButton = itemView.findViewById(R.id.addTagButton);
             deleteButton = itemView.findViewById(R.id.deleteButton);
             pinButton = itemView.findViewById(R.id.pinButton);
+            exportButton = itemView.findViewById(R.id.exportButton);
         }
         
         public void bind(Note note, OnNoteClickListener listener) {
@@ -234,6 +237,26 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
                 android.util.Log.w("NoteAdapter", "addTagButton is null!");
             }
             
+            // Set up export button - always visible on all layouts
+            if (exportButton != null) {
+                exportButton.setVisibility(View.VISIBLE);
+                exportButton.setEnabled(true);
+                exportButton.setOnClickListener(v -> {
+                    try {
+                        // Prevent card click
+                        itemView.setEnabled(false);
+                        if (listener != null && note != null) {
+                            listener.onExportClick(note);
+                        }
+                        itemView.postDelayed(() -> itemView.setEnabled(true), 100);
+                    } catch (Exception e) {
+                        android.util.Log.e("NoteAdapter", "Error in export click listener", e);
+                    }
+                });
+            } else {
+                android.util.Log.w("NoteAdapter", "exportButton is null!");
+            }
+
             // Set up delete button - always visible on all layouts
             if (deleteButton != null) {
                 deleteButton.setVisibility(View.VISIBLE);

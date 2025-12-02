@@ -47,6 +47,7 @@ import com.example.anchornotes_team3.util.GeocoderHelper;
 import com.example.anchornotes_team3.util.MarkdownConverter;
 import com.example.anchornotes_team3.util.MediaHelper;
 import com.example.anchornotes_team3.util.TextSpanUtils;
+import com.example.anchornotes_team3.util.UndoRedoHelper;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
@@ -89,6 +90,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private MaterialButton btnSizeLarge;
     private MaterialButton btnAddPhoto;
     private MaterialButton btnAddAudio;
+    private MaterialButton btnAddDrawing;
     private MaterialButton btnChecklist;
     private boolean checklistMode = false;
     private static final float CHECK_BULLET_SCALE = 1.4f;
@@ -104,7 +106,12 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     private GeocoderHelper geocoderHelper;
     private MenuItem pinMenuItem;
     private MenuItem backgroundColorMenuItem;
+    private MenuItem undoMenuItem;
+    private MenuItem redoMenuItem;
     private List<Tag> availableTags = new ArrayList<>();
+
+    // Undo/Redo support
+    private UndoRedoHelper undoRedoHelper;
     private boolean isNewNote = true;
     private boolean isTemplateMode = false; // Flag to indicate if creating/editing a template
     private String editingTemplateId = null; // ID of template being edited (null if creating new)
@@ -145,6 +152,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
     
     // Activity request codes
     private static final int REQUEST_CODE_MAP_LOCATION_PICKER = 201;
+    private static final int REQUEST_CODE_DRAWING = 202;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -189,6 +197,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         setupFormattingBar();
         setupKeyboardHandling(); // Handle keyboard to keep formatting bar visible
         setupAttachmentsRecyclerView();
+        setupUndoRedo();
 
         // Load available tags
         loadAvailableTags();
@@ -396,6 +405,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         btnSizeLarge = findViewById(R.id.btn_size_large);
         btnAddPhoto = findViewById(R.id.btn_add_photo);
         btnAddAudio = findViewById(R.id.btn_add_audio);
+        btnAddDrawing = findViewById(R.id.btn_add_drawing);
         btnChecklist = findViewById(R.id.btn_checklist);
         formattingBar = findViewById(R.id.formatting_bar);
         nestedScrollView = findViewById(R.id.nested_scroll_view);
@@ -625,6 +635,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         
         btnAddPhoto.setOnClickListener(v -> handleAddPhoto());
         btnAddAudio.setOnClickListener(v -> handleAddAudio());
+        btnAddDrawing.setOnClickListener(v -> handleAddDrawing());
 
         if (btnChecklist != null) {
             btnChecklist.setOnClickListener(v -> {
@@ -759,6 +770,32 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         if (formattingTextWatcher.isSizeActive()) {
             // We need to check which size is active - for now just show indication
             // You could extend FormattingTextWatcher to return which size if needed
+        }
+    }
+
+    private void setupUndoRedo() {
+        // Initialize undo/redo helper for the note body
+        undoRedoHelper = new UndoRedoHelper(etBody);
+
+        // Add text change listener to update undo/redo button states
+        etBody.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+                updateUndoRedoButtons();
+            }
+        });
+    }
+
+    private void updateUndoRedoButtons() {
+        if (undoMenuItem != null && redoMenuItem != null) {
+            undoMenuItem.setEnabled(undoRedoHelper.canUndo());
+            redoMenuItem.setEnabled(undoRedoHelper.canRedo());
         }
     }
 
@@ -1646,6 +1683,11 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         showAudioRecordingDialog();
     }
 
+    private void handleAddDrawing() {
+        Intent intent = new Intent(this, DrawingActivity.class);
+        startActivityForResult(intent, REQUEST_CODE_DRAWING);
+    }
+
     private void showAudioRecordingDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_audio_recording, null);
@@ -1747,6 +1789,15 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                     Attachment attachment = new Attachment(Attachment.AttachmentType.PHOTO, photoUri);
                     currentNote.addAttachment(attachment);
                     android.util.Log.d("NoteEditor", "📷 Photo attachment added! Total attachments: " + currentNote.getAttachments().size());
+                    updateAttachments();
+                }
+            } else if (requestCode == REQUEST_CODE_DRAWING && data != null) {
+                Uri drawingUri = data.getData();
+                android.util.Log.d("NoteEditor", "🎨 Drawing URI: " + drawingUri);
+                if (drawingUri != null) {
+                    Attachment attachment = new Attachment(Attachment.AttachmentType.PHOTO, drawingUri);
+                    currentNote.addAttachment(attachment);
+                    android.util.Log.d("NoteEditor", "🎨 Drawing attachment added! Total attachments: " + currentNote.getAttachments().size());
                     updateAttachments();
                 }
             } else if (requestCode == REQUEST_CODE_MAP_LOCATION_PICKER && data != null) {
@@ -1861,6 +1912,8 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         getMenuInflater().inflate(R.menu.menu_note_editor, menu);
         pinMenuItem = menu.findItem(R.id.action_pin);
         backgroundColorMenuItem = menu.findItem(R.id.action_background_color);
+        undoMenuItem = menu.findItem(R.id.action_undo);
+        redoMenuItem = menu.findItem(R.id.action_redo);
 
         // Show background color button for both notes and templates
         if (backgroundColorMenuItem != null) {
@@ -1868,6 +1921,7 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         }
 
         updatePinIcon();
+        updateUndoRedoButtons();
         return true;
     }
 
@@ -1887,9 +1941,32 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         } else if (id == R.id.action_background_color) {
             showColorPicker();
             return true;
+        } else if (id == R.id.action_export_pdf) {
+            exportNoteToPdf();
+            return true;
+        } else if (id == R.id.action_undo) {
+            performUndo();
+            return true;
+        } else if (id == R.id.action_redo) {
+            performRedo();
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void performUndo() {
+        if (undoRedoHelper != null && undoRedoHelper.undo()) {
+            Toast.makeText(this, "Undo", Toast.LENGTH_SHORT).show();
+            updateUndoRedoButtons();
+        }
+    }
+
+    private void performRedo() {
+        if (undoRedoHelper != null && undoRedoHelper.redo()) {
+            Toast.makeText(this, "Redo", Toast.LENGTH_SHORT).show();
+            updateUndoRedoButtons();
+        }
     }
 
     private void saveNote() {
@@ -2330,6 +2407,85 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
                 .show();
     }
 
+    private void exportNoteToPdf() {
+        // Check if we need to request storage permission (Android 10 and below)
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 200);
+                return;
+            }
+        }
+
+        // Update current note with current field values before export
+        String title = etTitle.getText().toString().trim();
+        android.text.Editable bodyEditable = etBody.getText();
+        String markdown = MarkdownConverter.toMarkdown(bodyEditable);
+
+        currentNote.setTitle(title);
+        currentNote.setText(markdown);
+
+        // Show progress message
+        Toast.makeText(this, "Exporting note to PDF...", Toast.LENGTH_SHORT).show();
+
+        // Export to PDF
+        com.example.anchornotes.team3.util.PdfExportHelper.exportNoteToPdf(
+                this,
+                currentNote,
+                new com.example.anchornotes.team3.util.PdfExportHelper.ExportCallback() {
+                    @Override
+                    public void onSuccess(java.io.File pdfFile) {
+                        if (pdfFile != null) {
+                            android.util.Log.d("NoteEditor", "📄 PDF exported: " + pdfFile.getAbsolutePath());
+                            // Offer to open or share the PDF (only for Android 9 and below)
+                            showPdfExportSuccessDialog(pdfFile);
+                        } else {
+                            android.util.Log.d("NoteEditor", "📄 PDF exported successfully");
+                            // For Android 10+, the success message is shown via toast by PdfExportHelper
+                        }
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        android.util.Log.e("NoteEditor", "❌ PDF export failed: " + error);
+                    }
+                });
+    }
+
+    private void showPdfExportSuccessDialog(java.io.File pdfFile) {
+        new AlertDialog.Builder(this)
+                .setTitle("PDF Exported")
+                .setMessage("PDF saved to:\n" + pdfFile.getAbsolutePath())
+                .setPositiveButton("Open", (dialog, which) -> openPdfFile(pdfFile))
+                .setNegativeButton("Done", null)
+                .show();
+    }
+
+    private void openPdfFile(java.io.File pdfFile) {
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        Uri uri;
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            uri = androidx.core.content.FileProvider.getUriForFile(
+                    this,
+                    getApplicationContext().getPackageName() + ".fileprovider",
+                    pdfFile);
+            intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } else {
+            uri = Uri.fromFile(pdfFile);
+        }
+
+        intent.setDataAndType(uri, "application/pdf");
+        intent.setFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
+
+        try {
+            startActivity(intent);
+        } catch (android.content.ActivityNotFoundException e) {
+            Toast.makeText(this, "No PDF viewer app found", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     // AttachmentsAdapter.OnAttachmentActionListener implementation
     @Override
     public void onRemoveAttachment(Attachment attachment) {
@@ -2441,6 +2597,11 @@ public class NoteEditorActivity extends AppCompatActivity implements Attachments
         super.onDestroy();
         // Clean up media player
         stopAudioPlayback();
+
+        // Clean up undo/redo helper
+        if (undoRedoHelper != null) {
+            undoRedoHelper.destroy();
+        }
     }
 
     @Override

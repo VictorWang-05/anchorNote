@@ -5,12 +5,12 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_gravity="bottom"
-    android:layout_marginStart="16dp"
-    android:layout_marginEnd="16dp"
+    android:layout_marginStart="8dp"
+    android:layout_marginEnd="8dp"
     android:layout_marginBottom="16dp"
     app:cardCornerRadius="24dp"
     app:cardElevation="8dp"
-    app:cardBackgroundColor="@color/card_background">
+    app:cardBackgroundColor="@android:color/transparent">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,7 +18,8 @@
         android:orientation="horizontal"
         android:paddingVertical="8dp"
         android:paddingHorizontal="12dp"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:background="@color/card_background">
 
         <!-- Filter Button -->
         <LinearLayout

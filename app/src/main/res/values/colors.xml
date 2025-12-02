@@ -4,7 +4,7 @@
     <color name="white">#FFFFFFFF</color>
 
     <!-- Apple Notes Style - Clean White Theme -->
-    <color name="background_beige">#FFFFFF</color>
+    <color name="background_beige">#F5F5F7</color>
     <color name="orange_primary">#FFCC00</color>
     <color name="orange_dark">#1C1C1E</color>
     <color name="note_card_beige">#FFFFFF</color>

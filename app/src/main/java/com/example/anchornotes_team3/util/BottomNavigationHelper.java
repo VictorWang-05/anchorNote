@@ -39,7 +39,7 @@ public class BottomNavigationHelper {
                     Intent intent = new Intent(activity, MainActivity.class);
                     intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                     activity.startActivity(intent);
-                    activity.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+                    applyTransition(activity, activeItem, NavItem.HOME);
                 }
             });
         }
@@ -50,7 +50,7 @@ public class BottomNavigationHelper {
                     if (authManager.isLoggedIn()) {
                         Intent intent = new Intent(activity, FilterOptionsActivity.class);
                         activity.startActivity(intent);
-                        activity.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+                        applyTransition(activity, activeItem, NavItem.FILTER);
                     } else {
                         Toast.makeText(activity, "Please login to filter notes", Toast.LENGTH_SHORT).show();
                     }
@@ -64,7 +64,7 @@ public class BottomNavigationHelper {
                     if (authManager.isLoggedIn()) {
                         Intent intent = new Intent(activity, TemplateActivity.class);
                         activity.startActivity(intent);
-                        activity.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+                        applyTransition(activity, activeItem, NavItem.TEMPLATES);
                     } else {
                         Toast.makeText(activity, "Please login first", Toast.LENGTH_SHORT).show();
                     }
@@ -78,12 +78,42 @@ public class BottomNavigationHelper {
                     if (authManager.isLoggedIn()) {
                         Intent intent = new Intent(activity, StatisticsActivity.class);
                         activity.startActivity(intent);
-                        activity.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+                        applyTransition(activity, activeItem, NavItem.STATS);
                     } else {
                         Toast.makeText(activity, "Please login first", Toast.LENGTH_SHORT).show();
                     }
                 }
             });
+        }
+    }
+
+    /**
+     * Apply directional slide animation based on navigation order
+     * Order: FILTER -> TEMPLATES -> HOME -> STATS
+     */
+    private static void applyTransition(Activity activity, NavItem from, NavItem to) {
+        int fromIndex = getNavIndex(from);
+        int toIndex = getNavIndex(to);
+
+        if (toIndex > fromIndex) {
+            // Moving right in the navigation bar
+            activity.overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
+        } else {
+            // Moving left in the navigation bar
+            activity.overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right);
+        }
+    }
+
+    /**
+     * Get the position index of each nav item (left to right)
+     */
+    private static int getNavIndex(NavItem item) {
+        switch (item) {
+            case FILTER: return 0;
+            case TEMPLATES: return 1;
+            case HOME: return 2;
+            case STATS: return 3;
+            default: return 2; // Default to HOME
         }
     }
 

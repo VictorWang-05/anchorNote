@@ -61,7 +61,10 @@ dependencies {
     // Google Maps - Map display and Places API
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.libraries.places:places:3.3.0")
-    
+
+    // PDF Generation - iText7 for Android
+    implementation("com.itextpdf:itext7-core:7.2.5")
+
     // Core library desugaring for Java 8+ APIs on older Android versions
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     

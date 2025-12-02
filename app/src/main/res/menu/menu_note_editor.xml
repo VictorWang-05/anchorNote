@@ -2,6 +2,22 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <!-- Undo -->
+    <item
+        android:id="@+id/action_undo"
+        android:icon="@drawable/ic_undo"
+        android:title="@string/action_undo"
+        android:enabled="false"
+        app:showAsAction="always" />
+
+    <!-- Redo -->
+    <item
+        android:id="@+id/action_redo"
+        android:icon="@drawable/ic_redo"
+        android:title="@string/action_redo"
+        android:enabled="false"
+        app:showAsAction="always" />
+
     <!-- Background Color -->
     <item
         android:id="@+id/action_background_color"
@@ -23,6 +39,12 @@
         android:icon="@android:drawable/ic_menu_save"
         android:title="@string/action_save"
         app:showAsAction="ifRoom" />
+
+    <!-- Export to PDF action in overflow menu -->
+    <item
+        android:id="@+id/action_export_pdf"
+        android:title="Export to PDF"
+        app:showAsAction="never" />
 
     <!-- Discard action in overflow menu -->
     <item

@@ -1,5 +1,7 @@
 package com.example.anchornotes_team3;
 
+import static android.content.Intent.getIntent;
+
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -109,6 +111,11 @@ public class FilterResultsActivity extends AppCompatActivity {
             @Override
             public void onPinClick(Note note) {
                 togglePinNote(note);
+            }
+
+            @Override
+            public void onExportClick(Note note) {
+                Toast.makeText(FilterResultsActivity.this, "PDF export not available from filter results", Toast.LENGTH_SHORT).show();
             }
         });
     }

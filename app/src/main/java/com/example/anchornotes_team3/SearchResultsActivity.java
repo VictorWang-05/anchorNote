@@ -108,6 +108,11 @@ public class SearchResultsActivity extends AppCompatActivity {
             public void onPinClick(Note note) {
                 togglePinNote(note);
             }
+
+            @Override
+            public void onExportClick(Note note) {
+                Toast.makeText(SearchResultsActivity.this, "PDF export not available from search results", Toast.LENGTH_SHORT).show();
+            }
         });
     }
 

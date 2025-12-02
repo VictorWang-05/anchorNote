@@ -11,6 +11,12 @@
     <string name="action_discard">Discard</string>
     <string name="action_pin">Pin</string>
     <string name="action_unpin">Unpin</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_redo">Redo</string>
+    <string name="action_clear">Clear</string>
+    
+    <!-- Drawing -->
+    <string name="drawing_title">Drawing</string>
     
     <!-- Chips -->
     <string name="chip_add_tag">+ Tag</string>

@@ -2,8 +2,8 @@
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="160dp"
-    android:layout_height="120dp"
+    android:layout_width="180dp"
+    android:layout_height="85dp"
     android:layout_marginEnd="8dp"
     android:layout_marginBottom="8dp"
     app:cardCornerRadius="10dp"
@@ -16,104 +16,146 @@
         android:orientation="vertical"
         android:padding="12dp">
 
-        <!-- Content Section -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:id="@+id/noteTitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:textColor="@color/text_dark"
-                android:fontFamily="sans-serif"
-                android:maxLines="3"
-                android:ellipsize="end"
-                android:gravity="start"
-                tools:text="Meeting Notes" />
-
-            <!-- Date and Tags Row -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/noteDate"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_secondary"
-                    android:fontFamily="sans-serif"
-                    android:gravity="start"
-                    tools:text="Apr 16" />
-
-                <!-- Tags Container -->
-                <com.google.android.material.chip.ChipGroup
-                    android:id="@+id/noteTags"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    app:singleLine="true"
-                    app:chipSpacing="2dp"
-                    app:chipSpacingHorizontal="2dp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Action Buttons Container -->
+        <!-- Title and Tags Row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="end"
+            android:gravity="center_vertical">
+
+            <!-- Title -->
+            <TextView
+                android:id="@+id/noteTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_dark"
+                android:fontFamily="sans-serif"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:gravity="start"
+                android:layout_marginEnd="4dp"
+                tools:text="Meeting Notes" />
+
+            <!-- Tags Container (compact dots) -->
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/noteTags"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:singleLine="true"
+                app:chipSpacing="2dp"
+                app:chipSpacingHorizontal="2dp" />
+        </LinearLayout>
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Date and Action Buttons Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:layout_marginTop="4dp">
 
-            <!-- Pin Button -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/pinButton"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
+            <!-- Date -->
+            <TextView
+                android:id="@+id/noteDate"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:minWidth="0dp"
-                android:padding="4dp"
-                android:text="↑"
-                android:textSize="16sp"
-                android:textColor="@color/accent_blue"
-                android:contentDescription="@string/pin_note" />
+                android:layout_weight="1"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:fontFamily="sans-serif"
+                android:gravity="start"
+                tools:text="Apr 16" />
 
-            <!-- Add Tag Button -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/addTagButton"
-                style="@style/Widget.Material3.Button.TextButton"
+            <!-- Action Buttons -->
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="2dp"
-                android:minWidth="0dp"
-                android:padding="4dp"
-                android:text="+"
-                android:textSize="16sp"
-                android:textColor="@color/accent_blue"
-                android:contentDescription="@string/add_tag" />
+                android:orientation="horizontal"
+                android:gravity="end">
 
-            <!-- Delete Button -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/deleteButton"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="2dp"
-                android:minWidth="0dp"
-                android:padding="4dp"
-                android:text="×"
-                android:textSize="18sp"
-                android:textColor="@color/logout_red"
-                android:contentDescription="@string/delete_note" />
+                <!-- Pin Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/pinButton"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    android:text="↑"
+                    android:textSize="14sp"
+                    android:textColor="@color/accent_blue"
+                    android:contentDescription="@string/pin_note" />
+
+                <!-- Add Tag Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/addTagButton"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="2dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    android:text="+"
+                    android:textSize="14sp"
+                    android:textColor="@color/accent_blue"
+                    android:contentDescription="@string/add_tag" />
+
+                <!-- Export to PDF Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/exportButton"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="2dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    android:text="📄"
+                    android:textSize="12sp"
+                    android:textColor="@color/accent_blue"
+                    android:contentDescription="Export to PDF" />
+
+                <!-- Delete Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/deleteButton"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="2dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    android:text="×"
+                    android:textSize="16sp"
+                    android:textColor="@color/logout_red"
+                    android:contentDescription="@string/delete_note" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </androidx.cardview.widget.CardView>
