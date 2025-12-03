@@ -39,6 +39,10 @@ public class DrawingActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // Enable edge-to-edge display
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        
         setContentView(R.layout.activity_drawing);
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
@@ -55,6 +59,35 @@ public class DrawingActivity extends AppCompatActivity {
 
         setupDrawingTools();
         updateToolButtonStates();
+        setupWindowInsets();
+    }
+
+    /**
+     * Setup window insets to handle system bars (navigation bar)
+     */
+    private void setupWindowInsets() {
+        android.view.View toolsMenu = findViewById(R.id.drawing_tools_menu);
+        
+        // Store original padding
+        final int originalPaddingBottom = toolsMenu.getPaddingBottom();
+        final int originalPaddingTop = toolsMenu.getPaddingTop();
+        final int originalPaddingLeft = toolsMenu.getPaddingLeft();
+        final int originalPaddingRight = toolsMenu.getPaddingRight();
+        
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(toolsMenu, (v, insets) -> {
+            androidx.core.graphics.Insets systemBars = insets.getInsets(
+                    androidx.core.view.WindowInsetsCompat.Type.systemBars());
+            
+            // Apply bottom padding to account for navigation bar
+            v.setPadding(
+                    originalPaddingLeft,
+                    originalPaddingTop,
+                    originalPaddingRight,
+                    originalPaddingBottom + systemBars.bottom
+            );
+            
+            return insets;
+        });
     }
 
     /**
@@ -100,9 +133,30 @@ public class DrawingActivity extends AppCompatActivity {
             btnPen.setTextColor(getResources().getColor(R.color.text_dark, null));
         }
 
-        // Update color button icon color to match current pen color
-        btnColor.setIconTint(android.content.res.ColorStateList.valueOf(
-                drawingView.getPenColor()));
+        // Update color button icon to show current pen color as a filled circle
+        updateColorButtonIcon();
+    }
+
+    /**
+     * Update the color button icon to display a circle filled with the current pen color
+     */
+    private void updateColorButtonIcon() {
+        int currentColor = drawingView.getPenColor();
+        
+        // Create a circular drawable with the current color
+        android.graphics.drawable.GradientDrawable colorCircle = new android.graphics.drawable.GradientDrawable();
+        colorCircle.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        colorCircle.setColor(currentColor);
+        colorCircle.setStroke(
+            (int) (2 * getResources().getDisplayMetrics().density), 
+            Color.parseColor("#757575")
+        );
+        colorCircle.setSize(
+            (int) (28 * getResources().getDisplayMetrics().density),
+            (int) (28 * getResources().getDisplayMetrics().density)
+        );
+        
+        btnColor.setIcon(colorCircle);
     }
 
     /**

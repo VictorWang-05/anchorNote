@@ -11,6 +11,9 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Required for geofencing on Android 10+ (API 29+) -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!-- Pomodoro timer notifications and exact alarms -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:targetApi="33" />
     <!-- Storage permissions for PDF export (Android 9 and below) -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
@@ -98,6 +101,12 @@
             android:exported="false"
             android:theme="@style/Theme.Anchornotes_team3" />
 
+        <!-- Pomodoro Activity -->
+        <activity
+            android:name=".PomodoroActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Anchornotes_team3" />
+
         <!-- Map Location Picker Activity -->
         <activity
             android:name=".MapLocationPickerActivity"
@@ -130,6 +139,11 @@
                 <action android:name="com.example.anchornotes_team3.GEOFENCE_EVENT" />
             </intent-filter>
         </receiver>
+
+        <!-- Pomodoro completion receiver -->
+        <receiver
+            android:name=".timer.PomodoroReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

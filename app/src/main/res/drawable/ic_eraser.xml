@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    
+    <!-- Eraser shape -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M16.24,3.56l4.19,4.19c0.39,0.39 0.39,1.02 0,1.41L8.82,20.78c-0.39,0.39 -1.02,0.39 -1.41,0L3.22,16.59c-0.39,-0.39 -0.39,-1.02 0,-1.41L14.83,3.56C15.22,3.17 15.84,3.17 16.24,3.56z"/>
+    
+    <!-- Eraser outline -->
+    <path
+        android:strokeColor="@android:color/black"
+        android:strokeWidth="1.5"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M16.24,3.56l4.19,4.19c0.39,0.39 0.39,1.02 0,1.41L8.82,20.78c-0.39,0.39 -1.02,0.39 -1.41,0L3.22,16.59c-0.39,-0.39 -0.39,-1.02 0,-1.41L14.83,3.56C15.22,3.17 15.84,3.17 16.24,3.56z"/>
+    
+    <!-- Eraser middle line -->
+    <path
+        android:strokeColor="@android:color/black"
+        android:strokeWidth="1.5"
+        android:pathData="M4.65,18l6.35,-6.35"/>
+</vector>
+

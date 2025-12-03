@@ -14,6 +14,7 @@ import com.example.anchornotes_team3.R;
 import com.example.anchornotes_team3.StatisticsActivity;
 import com.example.anchornotes_team3.TemplateActivity;
 import com.example.anchornotes_team3.auth.AuthManager;
+import com.example.anchornotes_team3.PomodoroActivity;
 
 public class BottomNavigationHelper {
 
@@ -21,7 +22,8 @@ public class BottomNavigationHelper {
         HOME,
         FILTER,
         TEMPLATES,
-        STATS
+        STATS,
+        POMODORO
     }
 
     public static void setupBottomNavigation(Activity activity, AuthManager authManager, NavItem activeItem) {
@@ -29,9 +31,10 @@ public class BottomNavigationHelper {
         View navFilter = activity.findViewById(R.id.nav_filter);
         View navTemplates = activity.findViewById(R.id.nav_templates);
         View navStats = activity.findViewById(R.id.nav_stats);
+        View navPomodoro = activity.findViewById(R.id.nav_pomodoro);
 
         // Set active state for the current page
-        setActiveState(activity, navHome, navFilter, navTemplates, navStats, activeItem);
+        setActiveState(activity, navHome, navFilter, navTemplates, navStats, navPomodoro, activeItem);
 
         if (navHome != null) {
             navHome.setOnClickListener(v -> {
@@ -85,6 +88,16 @@ public class BottomNavigationHelper {
                 }
             });
         }
+
+        if (navPomodoro != null) {
+            navPomodoro.setOnClickListener(v -> {
+                if (!(activity instanceof PomodoroActivity)) {
+                    Intent intent = new Intent(activity, PomodoroActivity.class);
+                    activity.startActivity(intent);
+                    activity.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+                }
+            });
+        }
     }
 
     /**
@@ -118,12 +131,13 @@ public class BottomNavigationHelper {
     }
 
     private static void setActiveState(Activity activity, View navHome, View navFilter,
-                                      View navTemplates, View navStats, NavItem activeItem) {
+                                      View navTemplates, View navStats, View navPomodoro, NavItem activeItem) {
         // Reset all buttons to inactive state
         resetButton(activity, navHome);
         resetButton(activity, navFilter);
         resetButton(activity, navTemplates);
         resetButton(activity, navStats);
+        resetButton(activity, navPomodoro);
 
         // Activate the current page's button
         switch (activeItem) {
@@ -139,6 +153,9 @@ public class BottomNavigationHelper {
             case STATS:
                 activateButton(activity, navStats);
                 break;
+            case POMODORO:
+                activateButton(activity, navPomodoro);
+                break;
         }
     }
 
@@ -150,13 +167,15 @@ public class BottomNavigationHelper {
             button.getId() == R.id.nav_home ? R.id.nav_home_icon :
             button.getId() == R.id.nav_filter ? R.id.nav_filter_icon :
             button.getId() == R.id.nav_templates ? R.id.nav_templates_icon :
-            R.id.nav_stats_icon
+            button.getId() == R.id.nav_stats ? R.id.nav_stats_icon :
+            R.id.nav_pomodoro_icon
         );
         TextView label = container.findViewById(
             button.getId() == R.id.nav_home ? R.id.nav_home_label :
             button.getId() == R.id.nav_filter ? R.id.nav_filter_label :
             button.getId() == R.id.nav_templates ? R.id.nav_templates_label :
-            R.id.nav_stats_label
+            button.getId() == R.id.nav_stats ? R.id.nav_stats_label :
+            R.id.nav_pomodoro_label
         );
 
         if (icon != null) {
@@ -175,13 +194,15 @@ public class BottomNavigationHelper {
             button.getId() == R.id.nav_home ? R.id.nav_home_icon :
             button.getId() == R.id.nav_filter ? R.id.nav_filter_icon :
             button.getId() == R.id.nav_templates ? R.id.nav_templates_icon :
-            R.id.nav_stats_icon
+            button.getId() == R.id.nav_stats ? R.id.nav_stats_icon :
+            R.id.nav_pomodoro_icon
         );
         TextView label = container.findViewById(
             button.getId() == R.id.nav_home ? R.id.nav_home_label :
             button.getId() == R.id.nav_filter ? R.id.nav_filter_label :
             button.getId() == R.id.nav_templates ? R.id.nav_templates_label :
-            R.id.nav_stats_label
+            button.getId() == R.id.nav_stats ? R.id.nav_stats_label :
+            R.id.nav_pomodoro_label
         );
 
         if (icon != null) {

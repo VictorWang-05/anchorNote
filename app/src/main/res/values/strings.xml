@@ -80,4 +80,15 @@
     <string name="template_name">Template Name</string>
     <string name="template_content">Template Content (Optional)</string>
     <string name="note_title">Note Title</string>
+    
+    <!-- Pomodoro -->
+    <string name="pomodoro_title">Pomodoro</string>
+    <string name="pomodoro_preset_work">pomodoro</string>
+    <string name="pomodoro_preset_short">short break</string>
+    <string name="pomodoro_preset_long">long break</string>
+    <string name="pomodoro_set_time">Set time</string>
+    <string name="pomodoro_start">start</string>
+    <string name="pomodoro_pause">pause</string>
+    <string name="pomodoro_reset">reset</string>
+    <string name="pomodoro_default_time">25:00</string>
 </resources>
