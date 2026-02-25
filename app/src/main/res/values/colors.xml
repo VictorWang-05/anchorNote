@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Homescreen colors -->
+    <color name="background_beige">#FFF5E6</color>
+    <color name="orange_primary">#FF8C42</color>
+    <color name="orange_dark">#E6732A</color>
+    <color name="note_card_beige">#FFF9F0</color>
+    <color name="text_dark">#2C2C2C</color>
+    <color name="text_secondary">#666666</color>
+    <color name="separator_orange">#FF8C42</color>
+</resources>

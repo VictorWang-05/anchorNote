@@ -1,0 +1,47 @@
+### Android ###
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+### Backend / Spring Boot ###
+backend/anchornotes/target/
+backend/anchornotes/.mvn/
+backend/anchornotes/mvnw
+backend/anchornotes/mvnw.cmd
+
+### Environment Variables (CRITICAL - NEVER COMMIT!) ###
+.env
+.env.*
+!.env.example
+backend/.env
+backend/anchornotes/.env
+*.env
+
+### Logs ###
+*.log
+logs/
+
+### OS Files ###
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+*~
+
+### IDE ###
+.idea/
+.vscode/
+*.swp
+*.swo

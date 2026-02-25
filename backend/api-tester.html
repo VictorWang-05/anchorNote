@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnchorNotes API Tester - All Endpoints</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            background: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .tab:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(0,0,0,0.2);
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .card h3 {
+            color: #764ba2;
+            margin: 15px 0 10px 0;
+            font-size: 1.1em;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .response {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .response pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+
+        .error {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+
+        .info {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        #apiStatus {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: #28a745;
+            box-shadow: 0 0 5px #28a745;
+        }
+
+        .status-offline {
+            background: #dc3545;
+            box-shadow: 0 0 5px #dc3545;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+            margin-top: 10px;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        code {
+            background: rgba(0,0,0,0.05);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .endpoint-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .get { background: #61affe; color: white; }
+        .post { background: #49cc90; color: white; }
+        .put { background: #fca130; color: white; }
+        .delete { background: #f93e3e; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 AnchorNotes API Tester</h1>
+
+        <div id="apiStatus">
+            <span class="status-indicator status-offline" id="statusDot"></span>
+            <span id="statusText">Checking API status...</span>
+        </div>
+
+        <div class="info">
+            <strong>📌 Quick Start:</strong><br>
+            1. Make sure backend is running: <code>cd backend/anchornotes && ./mvnw spring-boot:run</code><br>
+            2. Register a new user or login with existing credentials<br>
+            3. Use the token to test all protected endpoints (31 total)
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('auth')">🔐 Auth (2)</div>
+            <div class="tab" onclick="switchTab('notes')">📝 Notes (10)</div>
+            <div class="tab" onclick="switchTab('reminders')">⏰ Reminders (3)</div>
+            <div class="tab" onclick="switchTab('tags')">🏷️ Tags (3)</div>
+            <div class="tab" onclick="switchTab('attachments')">📎 Attachments (6)</div>
+            <div class="tab" onclick="switchTab('geofences')">📍 Geofences (1)</div>
+            <div class="tab" onclick="switchTab('templates')">📋 Templates (5)</div>
+            <div class="tab" onclick="switchTab('token')">🎫 Token</div>
+        </div>
+
+        <!-- AUTH TAB -->
+        <div id="auth" class="tab-content active">
+            <div class="grid">
+                <div class="card">
+                    <h2><span class="endpoint-badge post">POST</span>Register New User</h2>
+                    <form onsubmit="register(event)">
+                        <div class="form-group">
+                            <label>Username:</label>
+                            <input type="text" id="regUsername" placeholder="johndoe" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email:</label>
+                            <input type="email" id="regEmail" placeholder="john@example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Password:</label>
+                            <input type="password" id="regPassword" placeholder="Min 6 characters" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Full Name:</label>
+                            <input type="text" id="regFullName" placeholder="John Doe">
+                        </div>
+                        <button type="submit">Register</button>
+                    </form>
+                    <div id="registerResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge post">POST</span>Login</h2>
+                    <form onsubmit="login(event)">
+                        <div class="form-group">
+                            <label>Username (use email):</label>
+                            <input type="text" id="loginUsername" placeholder="john@example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Password:</label>
+                            <input type="password" id="loginPassword" required>
+                        </div>
+                        <button type="submit">Login</button>
+                    </form>
+                    <div id="loginResponse" class="response hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NOTES TAB -->
+        <div id="notes" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <h2><span class="endpoint-badge post">POST</span>Create Note</h2>
+                    <form onsubmit="createNote(event)">
+                        <div class="form-group">
+                            <label>Title:</label>
+                            <input type="text" id="noteTitle" placeholder="My Note" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Text:</label>
+                            <textarea id="noteText" rows="3" placeholder="Note content..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Pinned:</label>
+                            <select id="notePinned">
+                                <option value="false">No</option>
+                                <option value="true">Yes</option>
+                            </select>
+                        </div>
+                        <button type="submit">Create Note</button>
+                    </form>
+                    <div id="createNoteResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge get">GET</span>Get All Notes</h2>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Returns all notes for the current logged in user
+                    </p>
+                    <form onsubmit="getAllNotes(event)">
+                        <button type="submit">Get All Notes</button>
+                    </form>
+                    <div id="getAllNotesResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge get">GET</span>Get Note by ID</h2>
+                    <form onsubmit="getNoteById(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="getNoteId" placeholder="1" required>
+                        </div>
+                        <button type="submit">Get Note</button>
+                    </form>
+                    <div id="getNoteResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge put">PUT</span>Update Note</h2>
+                    <form onsubmit="updateNote(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="updateNoteId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Title:</label>
+                            <input type="text" id="updateNoteTitle" placeholder="Updated Title">
+                        </div>
+                        <div class="form-group">
+                            <label>Text:</label>
+                            <textarea id="updateNoteText" rows="3" placeholder="Updated content..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Pinned:</label>
+                            <select id="updateNotePinned">
+                                <option value="">Don't change</option>
+                                <option value="false">No</option>
+                                <option value="true">Yes</option>
+                            </select>
+                        </div>
+                        <button type="submit">Update Note</button>
+                    </form>
+                    <div id="updateNoteResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge delete">DELETE</span>Delete Note</h2>
+                    <form onsubmit="deleteNote(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="deleteNoteId" placeholder="1" required>
+                        </div>
+                        <button type="submit" class="btn-danger">Delete Note</button>
+                    </form>
+                    <div id="deleteNoteResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge post">POST</span>Pin/Unpin Note</h2>
+                    <form onsubmit="pinNote(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="pinNoteId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Pinned:</label>
+                            <select id="pinStatus" required>
+                                <option value="true">Pin</option>
+                                <option value="false">Unpin</option>
+                            </select>
+                        </div>
+                        <button type="submit">Update Pin Status</button>
+                    </form>
+                    <div id="pinNoteResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge put">PUT</span>Set Tags on Note</h2>
+                    <form onsubmit="setNoteTags(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="tagNoteId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Tag IDs (comma-separated):</label>
+                            <input type="text" id="tagIds" placeholder="1,2,3" required>
+                        </div>
+                        <button type="submit">Set Tags</button>
+                    </form>
+                    <div id="setTagsResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge get">GET</span>Search Notes (Keyword)</h2>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Searches by keyword in title and content only
+                    </p>
+                    <form onsubmit="searchNotes(event)">
+                        <div class="form-group">
+                            <label>Search Query (keyword):</label>
+                            <input type="text" id="searchQuery" placeholder="meeting">
+                        </div>
+                        <div class="form-group">
+                            <label>Limit:</label>
+                            <input type="number" id="searchLimit" value="50">
+                        </div>
+                        <div class="form-group">
+                            <label>Offset:</label>
+                            <input type="number" id="searchOffset" value="0">
+                        </div>
+                        <button type="submit">Search Notes</button>
+                    </form>
+                    <div id="searchNotesResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge get">GET</span>Filter Notes</h2>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Filter by tags, attachments, dates, and location
+                    </p>
+                    <form onsubmit="filterNotes(event)">
+                        <div class="form-group">
+                            <label>Tag IDs (comma-separated, optional):</label>
+                            <input type="text" id="filterTags" placeholder="1,2">
+                        </div>
+                        <div class="form-group">
+                            <label>Has Audio:</label>
+                            <select id="filterAudio">
+                                <option value="">Any</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Has Photo:</label>
+                            <select id="filterPhoto">
+                                <option value="">Any</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Has Location:</label>
+                            <select id="filterLocation">
+                                <option value="">Any</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Edited Start Date (UTC):</label>
+                            <input type="datetime-local" id="filterStartDate">
+                        </div>
+                        <div class="form-group">
+                            <label>Edited End Date (UTC):</label>
+                            <input type="datetime-local" id="filterEndDate">
+                        </div>
+                        <div class="form-group">
+                            <label>Limit:</label>
+                            <input type="number" id="filterLimit" value="50">
+                        </div>
+                        <div class="form-group">
+                            <label>Offset:</label>
+                            <input type="number" id="filterOffset" value="0">
+                        </div>
+                        <button type="submit">Filter Notes</button>
+                    </form>
+                    <div id="filterNotesResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge post">POST</span>Get Relevant Notes</h2>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Returns notes within ±1h of current time OR inside geofences
+                    </p>
+                    <form onsubmit="getRelevantNotes(event)">
+                        <div class="form-group">
+                            <label>Current Time (UTC, ISO format):</label>
+                            <input type="text" id="relevantNowUtc" placeholder="2025-10-30T23:00:00Z" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Inside Geofence IDs (comma-separated, optional):</label>
+                            <input type="text" id="relevantGeofences" placeholder="note_1,note_2">
+                        </div>
+                        <button type="submit">Get Relevant Notes</button>
+                        <button type="button" onclick="fillCurrentTime()" class="btn-secondary">Fill Current Time</button>
+                    </form>
+                    <div id="relevantNotesResponse" class="response hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- REMINDERS TAB -->
+        <div id="reminders" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <h2><span class="endpoint-badge put">PUT</span>Set Time Reminder</h2>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Note: Does NOT clear geofence reminder (both can coexist)
+                    </p>
+                    <form onsubmit="setTimeReminder(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="timeReminderNoteId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Local DateTime:</label>
+                            <input type="datetime-local" id="timeReminderDateTime" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Timezone:</label>
+                            <input type="text" id="timeReminderTz" value="America/Los_Angeles" required>
+                        </div>
+                        <button type="submit">Set Time Reminder</button>
+                    </form>
+                    <div id="timeReminderResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge put">PUT</span>Set Geofence Reminder</h2>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Note: Does NOT clear time reminder (both can coexist)
+                    </p>
+                    <form onsubmit="setGeofenceReminder(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="geoReminderNoteId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Latitude:</label>
+                            <input type="number" step="0.000001" id="geoLat" placeholder="34.0211" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Longitude:</label>
+                            <input type="number" step="0.000001" id="geoLng" placeholder="-118.2893" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Radius (meters):</label>
+                            <input type="number" id="geoRadius" value="150" required>
+                        </div>
+                        <button type="submit">Set Geofence Reminder</button>
+                    </form>
+                    <div id="geoReminderResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge delete">DELETE</span>Clear All Reminders</h2>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Clears BOTH time and geofence reminders from note
+                    </p>
+                    <form onsubmit="clearReminders(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="clearReminderNoteId" placeholder="1" required>
+                        </div>
+                        <button type="submit" class="btn-danger">Clear All Reminders</button>
+                    </form>
+                    <div id="clearRemindersResponse" class="response hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAGS TAB -->
+        <div id="tags" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <h2><span class="endpoint-badge get">GET</span>List All Tags</h2>
+                    <button onclick="listTags()">Get All Tags</button>
+                    <div id="listTagsResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge post">POST</span>Create Tag</h2>
+                    <form onsubmit="createTag(event)">
+                        <div class="form-group">
+                            <label>Tag Name:</label>
+                            <input type="text" id="tagName" placeholder="work" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Color (hex):</label>
+                            <input type="color" id="tagColor" value="#8B5CF6">
+                        </div>
+                        <button type="submit">Create Tag</button>
+                    </form>
+                    <div id="createTagResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge delete">DELETE</span>Delete Tag</h2>
+                    <form onsubmit="deleteTag(event)">
+                        <div class="form-group">
+                            <label>Tag ID:</label>
+                            <input type="number" id="deleteTagId" placeholder="1" required>
+                        </div>
+                        <button type="submit" class="btn-danger">Delete Tag</button>
+                    </form>
+                    <div id="deleteTagResponse" class="response hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ATTACHMENTS TAB -->
+        <div id="attachments" class="tab-content">
+            <div class="warning">
+                <strong>📎 Simple Upload:</strong> Use the cards below for easy one-step uploads through the backend!<br>
+                <strong>Advanced:</strong> The 3-step manual workflow is still available below for testing the multi-step upload API.
+            </div>
+            <div class="grid">
+                <div class="card">
+                    <h2>📸 Upload Photo</h2>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Upload photo file directly through backend (one-step process)
+                    </p>
+                    <form onsubmit="uploadPhotoSimple(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="uploadPhotoNoteId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Select Photo:</label>
+                            <input type="file" id="uploadPhotoFile" accept="image/*" required>
+                        </div>
+                        <button type="submit">Upload Photo</button>
+                    </form>
+                    <div id="uploadPhotoResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2>🎵 Upload Audio</h2>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Upload audio file directly through backend (one-step process)
+                    </p>
+                    <form onsubmit="uploadAudioSimple(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="uploadAudioNoteId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Select Audio:</label>
+                            <input type="file" id="uploadAudioFile" accept="audio/*" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Duration (seconds, optional):</label>
+                            <input type="number" id="uploadAudioDuration" placeholder="45">
+                        </div>
+                        <button type="submit">Upload Audio</button>
+                    </form>
+                    <div id="uploadAudioResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge post">POST</span>Initiate Photo Upload</h2>
+                    <form onsubmit="initiatePhotoUpload(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="photoNoteId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>File Name:</label>
+                            <input type="text" id="photoFileName" placeholder="photo.jpg" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Content Type:</label>
+                            <input type="text" id="photoContentType" value="image/jpeg" required>
+                        </div>
+                        <button type="submit">Initiate Photo Upload</button>
+                    </form>
+                    <div id="initiatePhotoResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge post">POST</span>Complete Photo Upload</h2>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Call after uploading file to Supabase URL (no body required)
+                    </p>
+                    <form onsubmit="completePhotoUpload(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="completePhotoNoteId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Attachment ID:</label>
+                            <input type="number" id="completePhotoId" placeholder="5" required>
+                        </div>
+                        <button type="submit">Complete Photo Upload</button>
+                    </form>
+                    <div id="completePhotoResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge delete">DELETE</span>Delete Photo</h2>
+                    <form onsubmit="deletePhoto(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="deletePhotoNoteId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Attachment ID:</label>
+                            <input type="number" id="deletePhotoId" placeholder="5" required>
+                        </div>
+                        <button type="submit" class="btn-danger">Delete Photo</button>
+                    </form>
+                    <div id="deletePhotoResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge post">POST</span>Initiate Audio Upload</h2>
+                    <form onsubmit="initiateAudioUpload(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="audioNoteId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>File Name:</label>
+                            <input type="text" id="audioFileName" placeholder="audio.m4a" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Content Type:</label>
+                            <input type="text" id="audioContentType" value="audio/mp4" required>
+                        </div>
+                        <button type="submit">Initiate Audio Upload</button>
+                    </form>
+                    <div id="initiateAudioResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge post">POST</span>Complete Audio Upload</h2>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Call after uploading file to Supabase URL (optional duration)
+                    </p>
+                    <form onsubmit="completeAudioUpload(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="completeAudioNoteId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Attachment ID:</label>
+                            <input type="number" id="completeAudioId" placeholder="6" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Duration (seconds, optional):</label>
+                            <input type="number" id="completeAudioDuration" placeholder="45">
+                        </div>
+                        <button type="submit">Complete Audio Upload</button>
+                    </form>
+                    <div id="completeAudioResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge delete">DELETE</span>Delete Audio</h2>
+                    <form onsubmit="deleteAudio(event)">
+                        <div class="form-group">
+                            <label>Note ID:</label>
+                            <input type="number" id="deleteAudioNoteId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Attachment ID:</label>
+                            <input type="number" id="deleteAudioId" placeholder="6" required>
+                        </div>
+                        <button type="submit" class="btn-danger">Delete Audio</button>
+                    </form>
+                    <div id="deleteAudioResponse" class="response hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GEOFENCES TAB -->
+        <div id="geofences" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <h2><span class="endpoint-badge get">GET</span>List Geofences for Android</h2>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Returns all notes with geofences formatted for Android GeofencingClient
+                    </p>
+                    <button onclick="listGeofences()">Get Geofences</button>
+                    <div id="listGeofencesResponse" class="response hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TEMPLATES TAB -->
+        <div id="templates" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <h2><span class="endpoint-badge get">GET</span>List All Templates</h2>
+                    <button onclick="listTemplates()">Get All Templates</button>
+                    <div id="listTemplatesResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge post">POST</span>Create Template</h2>
+                    <form onsubmit="createTemplate(event)">
+                        <div class="form-group">
+                            <label>Template Name:</label>
+                            <input type="text" id="templateName" placeholder="Weekly Report" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Text:</label>
+                            <textarea id="templateText" rows="3" placeholder="Template content..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Tag IDs (comma-separated, optional):</label>
+                            <input type="text" id="templateTags" placeholder="1,2">
+                        </div>
+                        <button type="submit">Create Template</button>
+                    </form>
+                    <div id="createTemplateResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge put">PUT</span>Update Template</h2>
+                    <form onsubmit="updateTemplate(event)">
+                        <div class="form-group">
+                            <label>Template ID:</label>
+                            <input type="number" id="updateTemplateId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Name:</label>
+                            <input type="text" id="updateTemplateName" placeholder="Updated Name">
+                        </div>
+                        <div class="form-group">
+                            <label>Text:</label>
+                            <textarea id="updateTemplateText" rows="3" placeholder="Updated content..."></textarea>
+                        </div>
+                        <button type="submit">Update Template</button>
+                    </form>
+                    <div id="updateTemplateResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge delete">DELETE</span>Delete Template</h2>
+                    <form onsubmit="deleteTemplate(event)">
+                        <div class="form-group">
+                            <label>Template ID:</label>
+                            <input type="number" id="deleteTemplateId" placeholder="1" required>
+                        </div>
+                        <button type="submit" class="btn-danger">Delete Template</button>
+                    </form>
+                    <div id="deleteTemplateResponse" class="response hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="endpoint-badge post">POST</span>Instantiate Template</h2>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                        Creates a new note from template
+                    </p>
+                    <form onsubmit="instantiateTemplate(event)">
+                        <div class="form-group">
+                            <label>Template ID:</label>
+                            <input type="number" id="instantiateTemplateId" placeholder="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>New Note Title:</label>
+                            <input type="text" id="instantiateTitle" placeholder="My New Note" required>
+                        </div>
+                        <button type="submit">Instantiate Template</button>
+                    </form>
+                    <div id="instantiateTemplateResponse" class="response hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOKEN TAB -->
+        <div id="token" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <h2>🎫 Current JWT Token</h2>
+                    <div class="form-group">
+                        <label>Token (auto-filled from login/register):</label>
+                        <textarea id="currentToken" rows="6" placeholder="Token will appear here after login/register"></textarea>
+                    </div>
+                    <button onclick="copyToken()" class="btn-secondary">Copy Token</button>
+                    <button onclick="clearToken()" class="btn-danger">Clear Token</button>
+                </div>
+
+                <div class="card">
+                    <h2>ℹ️ About Authentication</h2>
+                    <p style="line-height: 1.6; font-size: 14px;">
+                        <strong>How it works:</strong><br>
+                        1. Register or login to get a JWT token<br>
+                        2. Token is automatically saved and used for all protected endpoints<br>
+                        3. Token format: <code>Authorization: Bearer {token}</code><br>
+                        4. All endpoints except /api/auth/* require authentication<br><br>
+
+                        <strong>Email Verification:</strong><br>
+                        If you see <code>"EMAIL_VERIFICATION_REQUIRED"</code>, go to:<br>
+                        <strong>Supabase Dashboard → Authentication → Providers → Email</strong><br>
+                        Turn OFF "Confirm email" for development
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://anchornotesteam3-production.up.railway.app';
+        let authToken = '';
+
+        // Check API health on load
+        window.addEventListener('load', checkHealth);
+
+        function checkHealth() {
+            fetch(`${API_BASE_URL}/health`)
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('statusDot').className = 'status-indicator status-online';
+                    document.getElementById('statusText').textContent = '✅ API is Online and Healthy';
+                })
+                .catch(err => {
+                    document.getElementById('statusDot').className = 'status-indicator status-offline';
+                    document.getElementById('statusText').textContent = '❌ API is Offline - Make sure backend is running';
+                });
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // Helper: Make authenticated request
+        async function apiRequest(endpoint, method = 'GET', body = null, requireAuth = true) {
+            const token = document.getElementById('currentToken').value.trim();
+
+            if (requireAuth && !token) {
+                return { error: 'No authentication token. Please login first.' };
+            }
+
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            if (requireAuth && token) {
+                options.headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+
+                // Handle 204 No Content (DELETE operations)
+                if (response.status === 204) {
+                    return {
+                        data: { success: true, message: 'Operation completed successfully' },
+                        status: response.status,
+                        ok: response.ok
+                    };
+                }
+
+                // Handle responses with JSON body
+                const data = await response.json();
+                return { data, status: response.status, ok: response.ok };
+            } catch (error) {
+                return { error: error.message, ok: false };
+            }
+        }
+
+        // Display response helper
+        function displayResponse(elementId, result) {
+            const element = document.getElementById(elementId);
+            element.className = `response ${result.ok ? 'success' : 'error'}`;
+            element.innerHTML = `<pre>${JSON.stringify(result.data || result.error, null, 2)}</pre>`;
+            element.classList.remove('hidden');
+        }
+
+        // AUTH ENDPOINTS
+        async function register(e) {
+            e.preventDefault();
+            const result = await apiRequest('/api/auth/register', 'POST', {
+                username: document.getElementById('regUsername').value,
+                email: document.getElementById('regEmail').value,
+                password: document.getElementById('regPassword').value,
+                fullName: document.getElementById('regFullName').value
+            }, false);
+
+            displayResponse('registerResponse', result);
+
+            if (result.ok && result.data.data && result.data.data.token) {
+                document.getElementById('currentToken').value = result.data.data.token;
+            }
+        }
+
+        async function login(e) {
+            e.preventDefault();
+            const result = await apiRequest('/api/auth/login', 'POST', {
+                username: document.getElementById('loginUsername').value,
+                password: document.getElementById('loginPassword').value
+            }, false);
+
+            displayResponse('loginResponse', result);
+
+            if (result.ok && result.data.data && result.data.data.token) {
+                document.getElementById('currentToken').value = result.data.data.token;
+            }
+        }
+
+        // NOTES ENDPOINTS
+        async function createNote(e) {
+            e.preventDefault();
+            const result = await apiRequest('/api/notes', 'POST', {
+                title: document.getElementById('noteTitle').value,
+                text: document.getElementById('noteText').value,
+                pinned: document.getElementById('notePinned').value === 'true'
+            });
+            displayResponse('createNoteResponse', result);
+        }
+
+        async function getAllNotes(e) {
+            e.preventDefault();
+            const result = await apiRequest('/api/notes');
+            displayResponse('getAllNotesResponse', result);
+        }
+
+        async function getNoteById(e) {
+            e.preventDefault();
+            const noteId = document.getElementById('getNoteId').value;
+            const result = await apiRequest(`/api/notes/${noteId}`);
+            displayResponse('getNoteResponse', result);
+        }
+
+        async function updateNote(e) {
+            e.preventDefault();
+            const noteId = document.getElementById('updateNoteId').value;
+            const body = {};
+
+            const title = document.getElementById('updateNoteTitle').value;
+            const text = document.getElementById('updateNoteText').value;
+            const pinned = document.getElementById('updateNotePinned').value;
+
+            if (title) body.title = title;
+            if (text) body.text = text;
+            if (pinned) body.pinned = pinned === 'true';
+
+            const result = await apiRequest(`/api/notes/${noteId}`, 'PUT', body);
+            displayResponse('updateNoteResponse', result);
+        }
+
+        async function deleteNote(e) {
+            e.preventDefault();
+            const noteId = document.getElementById('deleteNoteId').value;
+            const result = await apiRequest(`/api/notes/${noteId}`, 'DELETE');
+            displayResponse('deleteNoteResponse', result);
+        }
+
+        async function pinNote(e) {
+            e.preventDefault();
+            const noteId = document.getElementById('pinNoteId').value;
+            const pinned = document.getElementById('pinStatus').value === 'true';
+            const result = await apiRequest(`/api/notes/${noteId}/pin`, 'POST', { pinned });
+            displayResponse('pinNoteResponse', result);
+        }
+
+        async function setNoteTags(e) {
+            e.preventDefault();
+            const noteId = document.getElementById('tagNoteId').value;
+            const tagIds = document.getElementById('tagIds').value.split(',').map(id => parseInt(id.trim()));
+            const result = await apiRequest(`/api/notes/${noteId}/tags`, 'PUT', { tagIds });
+            displayResponse('setTagsResponse', result);
+        }
+
+        async function searchNotes(e) {
+            e.preventDefault();
+            const params = new URLSearchParams();
+
+            const query = document.getElementById('searchQuery').value;
+            const limit = document.getElementById('searchLimit').value;
+            const offset = document.getElementById('searchOffset').value;
+
+            if (query) params.append('q', query);
+            if (limit) params.append('limit', limit);
+            if (offset) params.append('offset', offset);
+
+            const result = await apiRequest(`/api/notes/search?${params}`);
+            displayResponse('searchNotesResponse', result);
+        }
+
+        async function filterNotes(e) {
+            e.preventDefault();
+            const params = new URLSearchParams();
+
+            const tags = document.getElementById('filterTags').value;
+            const audio = document.getElementById('filterAudio').value;
+            const photo = document.getElementById('filterPhoto').value;
+            const location = document.getElementById('filterLocation').value;
+            const startDate = document.getElementById('filterStartDate').value;
+            const endDate = document.getElementById('filterEndDate').value;
+            const limit = document.getElementById('filterLimit').value;
+            const offset = document.getElementById('filterOffset').value;
+
+            if (tags) params.append('tagIds', tags);
+            if (audio) params.append('hasAudio', audio);
+            if (photo) params.append('hasPhoto', photo);
+            if (location) params.append('hasLocation', location);
+            if (startDate) params.append('editedStart', new Date(startDate).toISOString());
+            if (endDate) params.append('editedEnd', new Date(endDate).toISOString());
+            if (limit) params.append('limit', limit);
+            if (offset) params.append('offset', offset);
+
+            const result = await apiRequest(`/api/notes/filter?${params}`);
+            displayResponse('filterNotesResponse', result);
+        }
+
+        async function getRelevantNotes(e) {
+            e.preventDefault();
+            const nowUtc = document.getElementById('relevantNowUtc').value;
+            const geofences = document.getElementById('relevantGeofences').value;
+
+            const body = { nowUtc };
+            if (geofences) {
+                body.insideGeofenceIds = geofences.split(',').map(s => s.trim());
+            }
+
+            const result = await apiRequest('/api/notes/relevant-notes', 'POST', body);
+            displayResponse('relevantNotesResponse', result);
+        }
+
+        function fillCurrentTime() {
+            document.getElementById('relevantNowUtc').value = new Date().toISOString();
+        }
+
+        // REMINDERS ENDPOINTS
+        async function setTimeReminder(e) {
+            e.preventDefault();
+            const noteId = document.getElementById('timeReminderNoteId').value;
+            const localDateTime = document.getElementById('timeReminderDateTime').value;
+            const timeZone = document.getElementById('timeReminderTz').value;
+
+            const result = await apiRequest(`/api/notes/${noteId}/reminder/time`, 'PUT', {
+                localDateTime,
+                timeZone
+            });
+            displayResponse('timeReminderResponse', result);
+        }
+
+        async function setGeofenceReminder(e) {
+            e.preventDefault();
+            const noteId = document.getElementById('geoReminderNoteId').value;
+            const result = await apiRequest(`/api/notes/${noteId}/reminder/geofence`, 'PUT', {
+                latitude: parseFloat(document.getElementById('geoLat').value),
+                longitude: parseFloat(document.getElementById('geoLng').value),
+                radius: parseInt(document.getElementById('geoRadius').value)
+            });
+            displayResponse('geoReminderResponse', result);
+        }
+
+        async function clearReminders(e) {
+            e.preventDefault();
+            const noteId = document.getElementById('clearReminderNoteId').value;
+            const result = await apiRequest(`/api/notes/${noteId}/reminder`, 'DELETE');
+            displayResponse('clearRemindersResponse', result);
+        }
+
+        // TAGS ENDPOINTS
+        async function listTags() {
+            const result = await apiRequest('/api/tags');
+            displayResponse('listTagsResponse', result);
+        }
+
+        async function createTag(e) {
+            e.preventDefault();
+            const result = await apiRequest('/api/tags', 'POST', {
+                name: document.getElementById('tagName').value,
+                color: document.getElementById('tagColor').value
+            });
+            displayResponse('createTagResponse', result);
+        }
+
+        async function deleteTag(e) {
+            e.preventDefault();
+            const tagId = document.getElementById('deleteTagId').value;
+            const result = await apiRequest(`/api/tags/${tagId}`, 'DELETE');
+            displayResponse('deleteTagResponse', result);
+        }
+
+        // ATTACHMENTS ENDPOINTS
+
+        // Simple photo upload (one-step through backend)
+        async function uploadPhotoSimple(e) {
+            e.preventDefault();
+
+            const noteId = document.getElementById('uploadPhotoNoteId').value;
+            const fileInput = document.getElementById('uploadPhotoFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                displayResponse('uploadPhotoResponse', { error: 'No file selected' });
+                return;
+            }
+
+            // Get token from DOM
+            const token = document.getElementById('currentToken').value.trim();
+            if (!token) {
+                displayResponse('uploadPhotoResponse', { error: 'No authentication token. Please login first in the Auth tab.' });
+                return;
+            }
+
+            console.log('Uploading photo with token:', token.substring(0, 20) + '...');
+
+            try {
+                displayResponse('uploadPhotoResponse', { status: 'Uploading photo...' });
+
+                // Create FormData and append file
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // Upload directly to backend
+                const response = await fetch(`${API_BASE_URL}/api/notes/${noteId}/photo/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    try {
+                        const error = await response.json();
+                        displayResponse('uploadPhotoResponse', { error: error.message || 'Upload failed' });
+                    } catch (e) {
+                        displayResponse('uploadPhotoResponse', { error: `Upload failed with status ${response.status}` });
+                    }
+                    return;
+                }
+
+                const result = await response.json();
+                console.log('Upload response:', result);
+                displayResponse('uploadPhotoResponse', { ok: true, data: result });
+
+                // Clear file input
+                fileInput.value = '';
+
+            } catch (error) {
+                displayResponse('uploadPhotoResponse', {
+                    error: error.message || 'Upload failed'
+                });
+            }
+        }
+
+        // Simple audio upload (one-step through backend)
+        async function uploadAudioSimple(e) {
+            e.preventDefault();
+
+            const noteId = document.getElementById('uploadAudioNoteId').value;
+            const fileInput = document.getElementById('uploadAudioFile');
+            const file = fileInput.files[0];
+            const durationSec = document.getElementById('uploadAudioDuration').value;
+
+            if (!file) {
+                displayResponse('uploadAudioResponse', { error: 'No file selected' });
+                return;
+            }
+
+            // Get token from DOM
+            const token = document.getElementById('currentToken').value.trim();
+            if (!token) {
+                displayResponse('uploadAudioResponse', { error: 'No authentication token. Please login first in the Auth tab.' });
+                return;
+            }
+
+            console.log('Uploading audio with token:', token.substring(0, 20) + '...');
+
+            try {
+                displayResponse('uploadAudioResponse', { status: 'Uploading audio...' });
+
+                // Create FormData and append file
+                const formData = new FormData();
+                formData.append('file', file);
+                if (durationSec) {
+                    formData.append('durationSec', durationSec);
+                }
+
+                // Upload directly to backend
+                const response = await fetch(`${API_BASE_URL}/api/notes/${noteId}/audio/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    try {
+                        const error = await response.json();
+                        displayResponse('uploadAudioResponse', { error: error.message || 'Upload failed' });
+                    } catch (e) {
+                        displayResponse('uploadAudioResponse', { error: `Upload failed with status ${response.status}` });
+                    }
+                    return;
+                }
+
+                const result = await response.json();
+                console.log('Upload response:', result);
+                displayResponse('uploadAudioResponse', { ok: true, data: result });
+
+                // Clear file input
+                fileInput.value = '';
+
+            } catch (error) {
+                displayResponse('uploadAudioResponse', {
+                    error: error.message || 'Upload failed'
+                });
+            }
+        }
+
+        async function initiatePhotoUpload(e) {
+            e.preventDefault();
+            const noteId = document.getElementById('photoNoteId').value;
+            const result = await apiRequest(`/api/notes/${noteId}/photo`, 'POST', {
+                fileName: document.getElementById('photoFileName').value,
+                mime: document.getElementById('photoContentType').value,
+                size: 1024000  // Dummy size for manual testing
+            });
+            displayResponse('initiatePhotoResponse', result);
+        }
+
+        async function completePhotoUpload(e) {
+            e.preventDefault();
+            const noteId = document.getElementById('completePhotoNoteId').value;
+            const attachmentId = document.getElementById('completePhotoId').value;
+            const result = await apiRequest(`/api/notes/${noteId}/photo/${attachmentId}/complete`, 'POST');
+            displayResponse('completePhotoResponse', result);
+        }
+
+        async function deletePhoto(e) {
+            e.preventDefault();
+            const noteId = document.getElementById('deletePhotoNoteId').value;
+            const attachmentId = document.getElementById('deletePhotoId').value;
+            const result = await apiRequest(`/api/notes/${noteId}/photo/${attachmentId}`, 'DELETE');
+            displayResponse('deletePhotoResponse', result);
+        }
+
+        async function initiateAudioUpload(e) {
+            e.preventDefault();
+            const noteId = document.getElementById('audioNoteId').value;
+            const result = await apiRequest(`/api/notes/${noteId}/audio`, 'POST', {
+                fileName: document.getElementById('audioFileName').value,
+                mime: document.getElementById('audioContentType').value,
+                size: 1024000  // Dummy size for manual testing
+            });
+            displayResponse('initiateAudioResponse', result);
+        }
+
+        async function completeAudioUpload(e) {
+            e.preventDefault();
+            const noteId = document.getElementById('completeAudioNoteId').value;
+            const attachmentId = document.getElementById('completeAudioId').value;
+            const durationInput = document.getElementById('completeAudioDuration');
+
+            const body = {};
+            if (durationInput && durationInput.value) {
+                body.durationSec = parseInt(durationInput.value);
+            }
+
+            const result = await apiRequest(`/api/notes/${noteId}/audio/${attachmentId}/complete`, 'POST', body);
+            displayResponse('completeAudioResponse', result);
+        }
+
+        async function deleteAudio(e) {
+            e.preventDefault();
+            const noteId = document.getElementById('deleteAudioNoteId').value;
+            const attachmentId = document.getElementById('deleteAudioId').value;
+            const result = await apiRequest(`/api/notes/${noteId}/audio/${attachmentId}`, 'DELETE');
+            displayResponse('deleteAudioResponse', result);
+        }
+
+        // GEOFENCES ENDPOINTS
+        async function listGeofences() {
+            const result = await apiRequest('/api/geofences');
+            displayResponse('listGeofencesResponse', result);
+        }
+
+        // TEMPLATES ENDPOINTS
+        async function listTemplates() {
+            const result = await apiRequest('/api/templates');
+            displayResponse('listTemplatesResponse', result);
+        }
+
+        async function createTemplate(e) {
+            e.preventDefault();
+            const body = {
+                name: document.getElementById('templateName').value,
+                text: document.getElementById('templateText').value
+            };
+
+            const tags = document.getElementById('templateTags').value;
+            if (tags) {
+                body.tagIds = tags.split(',').map(id => parseInt(id.trim()));
+            }
+
+            const result = await apiRequest('/api/templates', 'POST', body);
+            displayResponse('createTemplateResponse', result);
+        }
+
+        async function updateTemplate(e) {
+            e.preventDefault();
+            const templateId = document.getElementById('updateTemplateId').value;
+            const body = {};
+
+            const name = document.getElementById('updateTemplateName').value;
+            const text = document.getElementById('updateTemplateText').value;
+
+            if (name) body.name = name;
+            if (text) body.text = text;
+
+            const result = await apiRequest(`/api/templates/${templateId}`, 'PUT', body);
+            displayResponse('updateTemplateResponse', result);
+        }
+
+        async function deleteTemplate(e) {
+            e.preventDefault();
+            const templateId = document.getElementById('deleteTemplateId').value;
+            const result = await apiRequest(`/api/templates/${templateId}`, 'DELETE');
+            displayResponse('deleteTemplateResponse', result);
+        }
+
+        async function instantiateTemplate(e) {
+            e.preventDefault();
+            const templateId = document.getElementById('instantiateTemplateId').value;
+            const result = await apiRequest(`/api/templates/${templateId}/instantiate`, 'POST', {
+                title: document.getElementById('instantiateTitle').value
+            });
+            displayResponse('instantiateTemplateResponse', result);
+        }
+
+        // TOKEN UTILITIES
+        function copyToken() {
+            const token = document.getElementById('currentToken').value;
+            if (!token) {
+                alert('No token to copy!');
+                return;
+            }
+            navigator.clipboard.writeText(token);
+            alert('Token copied to clipboard!');
+        }
+
+        function clearToken() {
+            document.getElementById('currentToken').value = '';
+            alert('Token cleared!');
+        }
+    </script>
+</body>
+</html>
